@@ -5,6 +5,8 @@ k3s_init_host: "{{ groups['servers'][0] }}"
 # Server URL join nodes register (init node's real IP)
 k3s_server_url: "https://{{ hostvars[groups['servers'][0]].ansible_host }}:6443"
 kube_vip_address: "192.168.3.251"
+# VIP для ingress-трафика: kube-vip (svc_enable) анонсирует его для LoadBalancer-сервиса traefik
+traefik_lb_ip: "192.168.3.252"
 localhost_kubeconfig: "~/.kube/config"
 
 allow_subnet: "192.168.3.0/24"

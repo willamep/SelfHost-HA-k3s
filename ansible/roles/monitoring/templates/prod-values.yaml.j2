@@ -55,8 +55,15 @@ grafana:
     storageClassName: nfs-client
     accessModes: ["ReadWriteOnce"]
     size: {{ monitoring_storage.grafana }}
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s{{ monitoring_grafana_path }}/"
+      serve_from_sub_path: true
   ingress:
-    enabled: false
+    enabled: true
+    ingressClassName: traefik
+    hosts: []
+    path: {{ monitoring_grafana_path }}
   service:
     type: ClusterIP
   adminPassword: "{{ grafana_admin_password }}"

@@ -1,0 +1,7 @@
+---
+# HelmChartConfig переопределяет values встроенного чарта traefik;
+# helm-controller k3s сам перекатывает релиз после изменения
+- name: Assign LB IP to traefik via HelmChartConfig
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', role_path + '/templates/helmchartconfig.yaml.j2') | from_yaml }}"

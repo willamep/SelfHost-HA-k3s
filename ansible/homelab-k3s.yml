@@ -39,6 +39,14 @@
     - role: pve_exporter
       tags: ['pve_exporter']
 
+- name: Configure traefik ingress controller
+  hosts: localhost
+  run_once: true
+  become: false
+  roles:
+    - role: traefik
+      tags: ['traefik']
+
 - name: Deploy monitoring
   hosts: localhost
   run_once: true
