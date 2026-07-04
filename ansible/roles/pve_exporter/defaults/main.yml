@@ -1,0 +1,5 @@
+pve_exporter_venv: /opt/prometheus-pve-exporter
+pve_exporter_pve_user: monitoring@pve
+# Токен свой на каждую ноду — значение хранится только в конфиге на ней самой
+pve_exporter_token_name: "exporter-{{ inventory_hostname | lower }}"
+pve_exporter_config: /etc/prometheus/pve.yml

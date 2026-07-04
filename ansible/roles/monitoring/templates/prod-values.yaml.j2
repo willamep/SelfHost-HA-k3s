@@ -1,0 +1,69 @@
+prometheus:
+  prometheusSpec:
+    retention: {{ monitoring_retention }}
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: nfs-client
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: {{ monitoring_storage.prometheus }}
+    additionalScrapeConfigs:
+{% for job in monitoring_external_jobs %}
+      - job_name: {{ job.job_name }}
+{% if job.metrics_path is defined %}
+        metrics_path: {{ job.metrics_path }}
+{% endif %}
+{% if job.params is defined %}
+        params: {{ job.params | to_json }}
+{% endif %}
+        static_configs:
+          - targets:
+{% for g in job.groups %}
+{% for h in groups[g] | default([]) %}
+              - "{{ hostvars[h].ansible_host }}:{{ job.port }}"
+{% endfor %}
+{% endfor %}
+{% endfor %}
+  ingress:
+    enabled: false
+  service:
+    type: ClusterIP
+
+alertmanager:
+  alertmanagerSpec:
+    replicas: {{ monitoring_alertmanager_replicas }}
+    podAntiAffinity: "hard"
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: nfs-client
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: {{ monitoring_storage.alertmanager }}
+  ingress:
+    enabled: false
+
+grafana:
+  enabled: true
+  initChownData:
+    enabled: false     # ← отключаем init-контейнер, который делает chown
+  persistence:
+    enabled: true
+    storageClassName: nfs-client
+    accessModes: ["ReadWriteOnce"]
+    size: {{ monitoring_storage.grafana }}
+  ingress:
+    enabled: false
+  service:
+    type: ClusterIP
+  adminPassword: "{{ grafana_admin_password }}"
+
+prometheus-node-exporter:
+  tolerations:
+    - key: "CriticalAddonsOnly"
+      operator: "Equal"
+      value: "true"
+      effect: "NoExecute"

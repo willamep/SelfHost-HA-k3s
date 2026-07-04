@@ -1,0 +1,30 @@
+k3s_version: "v1.35.5+k3s1"
+k3s_token: "{{ vault_k3s_token }}"
+# Init node = first host of the servers group (k3s-master-1)
+k3s_init_host: "{{ groups['servers'][0] }}"
+# Server URL join nodes register (init node's real IP)
+k3s_server_url: "https://{{ hostvars[groups['servers'][0]].ansible_host }}:6443"
+kube_vip_address: "192.168.3.251"
+localhost_kubeconfig: "~/.kube/config"
+
+allow_subnet: "192.168.3.0/24"
+nfs_share: /srv/nfs/
+nfs_server_ip: "{{ hostvars['nfs-server']['ansible_host'] }}"
+
+grafana_admin_password: "{{ vault_grafana_admin_password }}"
+
+# Prometheus exporters на хостах вне кластера
+node_exporter_port: 9100
+pve_exporter_port: 9221
+
+# Джобы для additionalScrapeConfigs в kube-prometheus-stack (роль monitoring)
+monitoring_external_jobs:
+  - job_name: node-external
+    port: "{{ node_exporter_port }}"
+    groups: ['nfs-server', 'wireguard']
+  - job_name: pve
+    port: "{{ pve_exporter_port }}"
+    groups: ['proxmox']
+    metrics_path: /pve
+    params:
+      target: ["localhost"]

@@ -1,0 +1,4 @@
+- name: Restart pve-exporter
+  systemd:
+    name: prometheus-pve-exporter
+    state: restarted

@@ -1,0 +1,14 @@
+# ── k3s ──────────────────────
+# Remove the ability to use servers for non-tolerant pods
+k3s_node_taint: "CriticalAddonsOnly=true:NoExecute"
+
+# ── kube-vip ──────────────────────
+kube_vip_version: "v1.2.1"
+kube_vip_interface: "{{ ansible_facts['default_ipv4']['interface'] }}"
+kube_vip_port: "6443"
+kube_vip_cidr: "32"
+kube_vip_arp: "true"
+kube_vip_lease_duration: "5"
+kube_vip_renew_deadline: "3"
+kube_vip_retry_period: "1"
+kube_vip_prometheus_server: ":2112"

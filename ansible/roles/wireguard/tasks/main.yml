@@ -1,0 +1,59 @@
+- name: Install WireGuard
+  apt: 
+    name: wireguard
+    state: present
+    update_cache: true
+    cache_valid_time: 86400
+
+- name: Create WireGuard directory
+  file:
+    path: /etc/wireguard
+    state: directory
+    mode: "0700"
+    owner: root
+    group: root
+
+- name: Generate keys if not exist
+  shell: |
+    wg genkey | tee /etc/wireguard/private_key | wg pubkey > /etc/wireguard/public_key
+  args:
+    creates: /etc/wireguard/private_key
+
+- name: Set correct permissions for keys
+  file:
+    path: "{{ item }}"
+    mode: "0600"
+    owner: root
+    group: root
+  loop:
+    - /etc/wireguard/private_key
+    - /etc/wireguard/public_key
+
+- name: Enable IPv4 forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: true
+    state: present
+    reload: true
+    sysctl_file: /etc/sysctl.d/z-99-wireguard-forward.conf
+
+- name: Read private key
+  slurp:
+    src: /etc/wireguard/private_key
+  register: private_key
+
+- name: Deploy WireGuard config
+  template:
+    src: ../templates/wg0.conf.j2
+    dest: /etc/wireguard/wg0.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart WireGuard
+
+- name: Start WireGuard
+  systemd:
+    name: wg-quick@wg0
+    enabled: true
+    state: started

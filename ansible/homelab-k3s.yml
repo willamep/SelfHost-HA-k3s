@@ -1,0 +1,48 @@
+---
+# - name: Deploy NFS
+#   hosts: nfs-server
+#   roles:
+#     - role: nfs_server
+#       tags: ['nfs_server']
+
+# - name: Deploy HA k3s control plane
+#   hosts: servers
+#   serial: [1, 2] # batch1 = init-server; batch2 = join-servers
+#   roles:
+#     - role: k3s_servers
+#       tags: ['k3s_servers']
+
+# - name: Deploy HA k3s agents
+#   hosts: agents
+#   roles:
+#     - role: k3s_agents
+#       tags: ['k3s_agents']
+
+# - name: Deploy nfs-provisioner
+#   hosts: localhost
+#   run_once: true
+#   become: false
+#   roles:
+#     - role: nfs-provisioner
+#       tags: ['nfs-provisioner']
+
+- name: Install node_exporter
+  hosts: nfs-server:wireguard
+  roles:
+    - role: node_exporter
+      tags: ['node_exporter']
+
+- name: Install pve-exporter
+  hosts: proxmox
+  gather_facts: false # роль не использует факты; не роняет прогон, если ноды недоступны
+  roles:
+    - role: pve_exporter
+      tags: ['pve_exporter']
+
+- name: Deploy monitoring
+  hosts: localhost
+  run_once: true
+  become: false
+  roles:
+    - role: monitoring
+      tags: ['monitoring']

@@ -1,0 +1,86 @@
+---
+- name: Install nfs-server
+  apt:
+    name: nfs-kernel-server
+    state: present
+    update_cache: true
+    cache_valid_time: 86400
+
+- name: Create share directories
+  ansible.builtin.file:
+    path: "{{ nfs_share }}"
+    state: directory
+    mode: "0755"
+    owner: nobody
+    group: nogroup
+
+- name: Add export entries to /etc/exports
+  ansible.builtin.blockinfile:
+    path: /etc/exports
+    block: |
+      {{ nfs_share }} {{ allow_subnet }}(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534)
+    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+    create: true
+    mode: "0644"
+
+### На случай если allow_subnet будет список
+# - name: Add export entries to /etc/exports
+#   ansible.builtin.blockinfile:
+#     path: /etc/exports
+#     block: |
+#       {% for subnet in allow_subnet %}
+#       {{ nfs_share }} {{ subnet }}(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534)
+#       {% endfor %}
+#     marker: "# {mark} ANSIBLE MANAGED BLOCK"
+#     create: true
+#     mode: "0644"
+#   notify: Reexport NFS shares
+
+### На случай если nfs_share и allow_subnet будет список
+# - name: Add export entries to /etc/exports
+#   ansible.builtin.blockinfile:
+#     path: /etc/exports
+#     block: |
+#       {% for share in nfs_share %}
+#       {% for subnet in allow_subnet %}
+#       {{ share }} {{ subnet }}(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534)
+#       {% endfor %}
+#       {% endfor %}
+#     marker: "# {mark} ANSIBLE MANAGED BLOCK"
+#     create: true
+#     mode: "0644"
+#   notify: Reexport NFS shares
+
+- name: Apply NFS exports
+  ansible.builtin.command: exportfs -arv
+  changed_when: true
+
+- name: Enable and start nfs-kernel-server
+  ansible.builtin.systemd:
+    name: nfs-kernel-server
+    enabled: true
+    state: started
+
+### На случай, если я вернусь к формату словаря
+# - name: Create share directories
+#   ansible.builtin.file:
+#     path: "{{ item.value.path }}"
+#     state: directory
+#     mode: "0755"
+#     owner: nobody
+#     group: nogroup
+#   loop: "{{ nfs_shares | dict2items }}"
+#   loop_control:
+#     label: "{{ item.key }}"
+
+# - name: Add export entries to /etc/exports
+#   ansible.builtin.blockinfile:
+#     path: /etc/exports
+#     block: |
+#       {{ item.value.path }} {{ allow_subnet }}(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534)
+#     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.key }}"
+#     create: true
+#     mode: "0644"
+#   loop: "{{ nfs_shares | dict2items }}"
+#   loop_control:
+#     label: "{{ item.key }}"

@@ -1,0 +1,14 @@
+---
+- name: Add prometheus-community Helm repo
+  kubernetes.core.helm_repository:
+    name: "{{ monitoring_chart_repo_name }}"
+    repo_url: "{{ monitoring_chart_repo_url }}"
+
+- name: Deploy kube-prometheus-stack
+  kubernetes.core.helm:
+    name: "{{ monitoring_release_name }}"
+    chart_ref: "{{ monitoring_chart_ref }}"
+    release_namespace: "{{ monitoring_namespace }}"
+    create_namespace: true
+    update_repo_cache: true
+    values: "{{ lookup('template', role_path + '/templates/prod-values.yaml.j2') | from_yaml }}"

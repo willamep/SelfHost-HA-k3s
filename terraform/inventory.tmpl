@@ -1,0 +1,18 @@
+all:
+  children:
+%{ for role in distinct([for vm in vms : vm.role]) ~}
+    ${role}:
+      hosts:
+%{ for vm in vms ~}
+%{ if vm.role == role ~}
+        ${vm.name}:
+          ansible_host: ${vm.ip}
+%{ endif ~}
+%{ endfor ~}
+%{ endfor ~}
+    proxmox:
+      hosts:
+%{ for name, ip in proxmox_nodes ~}
+        ${name}:
+          ansible_host: ${ip}
+%{ endfor ~}

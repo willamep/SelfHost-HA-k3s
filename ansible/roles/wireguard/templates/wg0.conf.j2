@@ -1,0 +1,14 @@
+[Interface]
+Address = {{ wireguard_address }}
+ListenPort = {{ wireguard_port }}
+PrivateKey = {{ private_key.content | b64decode | trim }}
+
+PostUp = nft add table ip wg_nat && nft add chain ip wg_nat postrouting { type nat hook postrouting priority 100 \; } && nft add rule ip wg_nat postrouting oifname "{{ ansible_facts['default_ipv4']['interface'] }}" ip saddr {{ wireguard_address }} masquerade
+PostDown = nft delete table ip wg_nat
+
+{% for peer in wireguard_peers %}
+[Peer]
+PublicKey = {{ peer.public_key }}
+AllowedIPs = {{ peer.ip }}
+{% endfor %}
+

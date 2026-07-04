@@ -1,0 +1,28 @@
+---
+- name: Join node as additional HA server
+  ansible.builtin.command: /tmp/install-k3s.sh
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    K3S_TOKEN: "{{ k3s_token }}"
+    INSTALL_K3S_EXEC: >-
+      server --server {{ k3s_server_url }}
+      --tls-san {{ kube_vip_address }}
+      --node-taint {{ k3s_node_taint }}
+      --disable servicelb
+  args:
+    creates: /etc/systemd/system/k3s.service
+
+- name: Wait until node object appears in cluster
+  command: /usr/local/bin/k3s kubectl get node {{ inventory_hostname }}
+  register: node_check
+  until: node_check.rc == 0
+  retries: 30
+  delay: 5
+  changed_when: false
+
+- name: Wait until K3s node is Ready
+  ansible.builtin.command: >-
+    /usr/local/bin/k3s kubectl wait
+    --for=condition=Ready node/{{ inventory_hostname }}
+    --timeout=120s
+  changed_when: false

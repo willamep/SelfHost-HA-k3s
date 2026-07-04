@@ -1,0 +1,3 @@
+monitoring_chart_repo_name: prometheus-community
+monitoring_chart_repo_url: https://prometheus-community.github.io/helm-charts
+monitoring_chart_ref: "prometheus-community/kube-prometheus-stack"

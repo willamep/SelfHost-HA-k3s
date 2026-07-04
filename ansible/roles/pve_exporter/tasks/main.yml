@@ -1,0 +1,92 @@
+- name: Install python venv
+  apt:
+    name:
+      - python3-venv
+      - python3-pip
+    state: present
+    update_cache: true
+    cache_valid_time: 86400
+
+- name: Install prometheus-pve-exporter into venv
+  pip:
+    name: prometheus-pve-exporter
+    virtualenv: "{{ pve_exporter_venv }}"
+    virtualenv_command: python3 -m venv
+
+- name: List PVE users
+  command: pveum user list --output-format json
+  register: pve_users
+  changed_when: false
+  run_once: true
+
+- name: Create PVE monitoring user
+  command: pveum user add {{ pve_exporter_pve_user }} --comment "Prometheus PVE exporter"
+  run_once: true
+  when: >-
+    pve_users.stdout | from_json
+    | selectattr('userid', 'equalto', pve_exporter_pve_user)
+    | list | length == 0
+
+- name: Grant PVEAuditor on /
+  command: pveum acl modify / --users {{ pve_exporter_pve_user }} --roles PVEAuditor
+  run_once: true
+  changed_when: false
+
+- name: Check exporter config
+  stat:
+    path: "{{ pve_exporter_config }}"
+  register: pve_exporter_config_stat
+
+- name: List API tokens
+  command: pveum user token list {{ pve_exporter_pve_user }} --output-format json
+  register: pve_tokens
+  changed_when: false
+  when: not pve_exporter_config_stat.stat.exists
+
+- name: Remove stale API token (config missing)
+  command: pveum user token remove {{ pve_exporter_pve_user }} {{ pve_exporter_token_name }}
+  when:
+    - not pve_exporter_config_stat.stat.exists
+    - >-
+      pve_tokens.stdout | from_json
+      | selectattr('tokenid', 'equalto', pve_exporter_token_name)
+      | list | length > 0
+
+- name: Create API token for this node
+  command: >-
+    pveum user token add {{ pve_exporter_pve_user }} {{ pve_exporter_token_name }}
+    --privsep 0 --output-format json
+  register: pve_token_create
+  when: not pve_exporter_config_stat.stat.exists
+
+- name: Create config directory
+  file:
+    path: "{{ pve_exporter_config | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Deploy exporter config
+  template:
+    src: pve.yml.j2
+    dest: "{{ pve_exporter_config }}"
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    pve_exporter_token_value: "{{ (pve_token_create.stdout | from_json).value }}"
+  when: not pve_exporter_config_stat.stat.exists
+  notify: Restart pve-exporter
+
+- name: Deploy systemd unit
+  template:
+    src: prometheus-pve-exporter.service.j2
+    dest: /etc/systemd/system/prometheus-pve-exporter.service
+    mode: "0644"
+  notify: Restart pve-exporter
+
+- name: Enable and start pve-exporter
+  systemd:
+    name: prometheus-pve-exporter
+    daemon_reload: true
+    enabled: true
+    state: started

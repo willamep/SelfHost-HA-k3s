@@ -1,0 +1,16 @@
+---
+- name: Create dir for kube-vip menifest
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests/
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Render kube-vip manifest into k3s auto-deploy directory
+  ansible.builtin.template:
+    src: kube-vip.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/kube-vip.yaml
+    owner: root
+    group: root
+    mode: "0644"

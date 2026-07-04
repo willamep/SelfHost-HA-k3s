@@ -1,0 +1,51 @@
+---
+- name: Install nfs-common
+  apt:
+    name: nfs-common
+    state: present
+    update_cache: true
+    cache_valid_time: 86400
+
+- name: Check whether k3s is already installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Fetch k3s install script
+  ansible.builtin.get_url:
+    url: https://get.k3s.io
+    dest: /tmp/install-k3s.sh
+    mode: "0755"
+  when: not k3s_binary.stat.exists
+
+- name: Install k3s as agent
+  ansible.builtin.command: /tmp/install-k3s.sh
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    K3S_TOKEN: "{{ k3s_token }}"
+    INSTALL_K3S_EXEC: >-
+      agent --server {{ k3s_server_url }}
+  # args:
+  #   creates: /etc/systemd/system/k3s.service
+  when: not k3s_binary.stat.exists
+
+- name: Wait until K3s node is Readyв
+  ansible.builtin.command: >-
+    /usr/local/bin/k3s kubectl wait
+    --for=condition=Ready node/{{ inventory_hostname }}
+    --timeout=120s
+  delegate_to: "{{ k3s_init_host }}"
+  changed_when: false
+
+- name: Label agent nodes as worker
+  ansible.builtin.command: >-
+    kubectl label node {{ inventory_hostname }}
+    node-role.kubernetes.io/worker=worker
+    --overwrite
+  delegate_to: "{{ k3s_init_host }}"
+  changed_when: false
+
+- name: Delete k3s installer
+  ansible.builtin.file:
+    path: /tmp/install-k3s.sh
+    state: absent
