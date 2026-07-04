@@ -47,6 +47,14 @@
     - role: traefik
       tags: ['traefik']
 
+- name: Deploy cert-manager
+  hosts: localhost
+  run_once: true
+  become: false
+  roles:
+    - role: cert_manager
+      tags: ['cert_manager']
+
 - name: Deploy monitoring
   hosts: localhost
   run_once: true

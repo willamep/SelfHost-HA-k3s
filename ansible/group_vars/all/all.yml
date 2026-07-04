@@ -14,6 +14,8 @@ nfs_share: /srv/nfs/
 nfs_server_ip: "{{ hostvars['nfs-server']['ansible_host'] }}"
 
 grafana_admin_password: "{{ vault_grafana_admin_password }}"
+grafana_domain: "grafana.avocatocat.ru"
+acme_email: "{{ vault_acme_email }}"  # уведомления Let's Encrypt об истечении сертификатов
 
 # Prometheus exporters на хостах вне кластера
 node_exporter_port: 9100

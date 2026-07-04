@@ -57,13 +57,19 @@ grafana:
     size: {{ monitoring_storage.grafana }}
   grafana.ini:
     server:
-      root_url: "%(protocol)s://%(domain)s{{ monitoring_grafana_path }}/"
-      serve_from_sub_path: true
+      root_url: "https://{{ grafana_domain }}/"
   ingress:
     enabled: true
     ingressClassName: traefik
-    hosts: []
-    path: {{ monitoring_grafana_path }}
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - {{ grafana_domain }}
+    path: /
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - {{ grafana_domain }}
   service:
     type: ClusterIP
   adminPassword: "{{ grafana_admin_password }}"

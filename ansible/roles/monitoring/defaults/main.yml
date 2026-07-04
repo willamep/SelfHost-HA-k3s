@@ -2,7 +2,6 @@ monitoring_namespace: monitoring
 monitoring_release_name: kube-prometheus
 monitoring_retention: 15d
 monitoring_alertmanager_replicas: 2
-monitoring_grafana_path: /grafana
 monitoring_storage:
   prometheus: 20Gi
   alertmanager: 2Gi
