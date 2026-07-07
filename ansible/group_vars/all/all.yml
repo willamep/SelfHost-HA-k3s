@@ -5,17 +5,31 @@ k3s_init_host: "{{ groups['servers'][0] }}"
 # Server URL join nodes register (init node's real IP)
 k3s_server_url: "https://{{ hostvars[groups['servers'][0]].ansible_host }}:6443"
 kube_vip_address: "192.168.3.251"
+# Pod-CIDR кластера (default k3s --cluster-cidr); из этих адресов приходит
+# трафик traefik → nextcloud использует его как trusted_proxies
+k3s_cluster_cidr: "10.42.0.0/16"
 # VIP для ingress-трафика: kube-vip (svc_enable) анонсирует его для LoadBalancer-сервиса traefik
 traefik_lb_ip: "192.168.3.252"
 localhost_kubeconfig: "~/.kube/config"
 
 allow_subnet: "192.168.3.0/24"
-nfs_share: /srv/nfs/
+nfs_provisioner_share: /srv/nfs/            # динамические PV (nfs-subdir-provisioner)
+nextcloud_nfs_share: /srv/nfs-nextcloud/    # пользовательские файлы Nextcloud (inline-монтирование в под)
+nfs_share:
+  - "{{ nfs_provisioner_share }}"
+  - "{{ nextcloud_nfs_share }}"
 nfs_server_ip: "{{ hostvars['nfs-server']['ansible_host'] }}"
 
+acme_email: "{{ vault_acme_email }}"  # уведомления Let's Encrypt об истечении сертификатов
+
+grafana_admin_username: "Avocato"
 grafana_admin_password: "{{ vault_grafana_admin_password }}"
 grafana_domain: "grafana.avocatocat.ru"
-acme_email: "{{ vault_acme_email }}"  # уведомления Let's Encrypt об истечении сертификатов
+
+nextcloud_domain: "cloud.avocatocat.ru"
+nextcloud_admin_user: "Avocato"
+nextcloud_admin_password: "{{ vault_nextcloud_admin_password }}"
+nextcloud_db_password: "{{ vault_nextcloud_db_password }}"
 
 # Prometheus exporters на хостах вне кластера
 node_exporter_port: 9100

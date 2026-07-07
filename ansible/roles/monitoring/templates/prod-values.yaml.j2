@@ -72,6 +72,7 @@ grafana:
           - {{ grafana_domain }}
   service:
     type: ClusterIP
+  adminUser: "{{ grafana_admin_username }}"
   adminPassword: "{{ grafana_admin_password }}"
 
 prometheus-node-exporter:

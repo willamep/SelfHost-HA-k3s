@@ -1,30 +1,29 @@
----
-# - name: Deploy NFS
-#   hosts: nfs-server
-#   roles:
-#     - role: nfs_server
-#       tags: ['nfs_server']
+- name: Deploy NFS
+  hosts: nfs-server
+  roles:
+    - role: nfs_server
+      tags: ['nfs_server']
 
-# - name: Deploy HA k3s control plane
-#   hosts: servers
-#   serial: [1, 2] # batch1 = init-server; batch2 = join-servers
-#   roles:
-#     - role: k3s_servers
-#       tags: ['k3s_servers']
+- name: Deploy HA k3s control plane
+  hosts: servers
+  serial: [1, 2] # batch1 = init-server; batch2 = join-servers
+  roles:
+    - role: k3s_servers
+      tags: ['k3s_servers']
 
-# - name: Deploy HA k3s agents
-#   hosts: agents
-#   roles:
-#     - role: k3s_agents
-#       tags: ['k3s_agents']
+- name: Deploy HA k3s agents
+  hosts: agents
+  roles:
+    - role: k3s_agents
+      tags: ['k3s_agents']
 
-# - name: Deploy nfs-provisioner
-#   hosts: localhost
-#   run_once: true
-#   become: false
-#   roles:
-#     - role: nfs-provisioner
-#       tags: ['nfs-provisioner']
+- name: Deploy nfs-provisioner
+  hosts: localhost
+  run_once: true
+  become: false
+  roles:
+    - role: nfs-provisioner
+      tags: ['nfs-provisioner']
 
 - name: Install node_exporter
   hosts: nfs-server:wireguard
@@ -62,3 +61,11 @@
   roles:
     - role: monitoring
       tags: ['monitoring']
+
+- name: Deploy nextcloud
+  hosts: localhost
+  run_once: true
+  become: false
+  roles:
+    - role: nextcloud
+      tags: ['nextcloud']

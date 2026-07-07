@@ -1,0 +1,3 @@
+nextcloud_chart_repo_name: nextcloud
+nextcloud_chart_repo_url: https://nextcloud.github.io/helm/
+nextcloud_chart_ref: "{{ nextcloud_chart_repo_name }}/nextcloud"

@@ -8,35 +8,25 @@
 
 - name: Create share directories
   ansible.builtin.file:
-    path: "{{ nfs_share }}"
+    path: "{{ item }}"
     state: directory
     mode: "0755"
     owner: nobody
     group: nogroup
+  loop: "{{ nfs_share }}"
 
 - name: Add export entries to /etc/exports
   ansible.builtin.blockinfile:
     path: /etc/exports
     block: |
-      {{ nfs_share }} {{ allow_subnet }}(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534)
+      {% for share in nfs_share %}
+      {{ share }} {{ allow_subnet }}(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534)
+      {% endfor %}
     marker: "# {mark} ANSIBLE MANAGED BLOCK"
     create: true
     mode: "0644"
 
 ### На случай если allow_subnet будет список
-# - name: Add export entries to /etc/exports
-#   ansible.builtin.blockinfile:
-#     path: /etc/exports
-#     block: |
-#       {% for subnet in allow_subnet %}
-#       {{ nfs_share }} {{ subnet }}(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534)
-#       {% endfor %}
-#     marker: "# {mark} ANSIBLE MANAGED BLOCK"
-#     create: true
-#     mode: "0644"
-#   notify: Reexport NFS shares
-
-### На случай если nfs_share и allow_subnet будет список
 # - name: Add export entries to /etc/exports
 #   ansible.builtin.blockinfile:
 #     path: /etc/exports
@@ -60,27 +50,3 @@
     name: nfs-kernel-server
     enabled: true
     state: started
-
-### На случай, если я вернусь к формату словаря
-# - name: Create share directories
-#   ansible.builtin.file:
-#     path: "{{ item.value.path }}"
-#     state: directory
-#     mode: "0755"
-#     owner: nobody
-#     group: nogroup
-#   loop: "{{ nfs_shares | dict2items }}"
-#   loop_control:
-#     label: "{{ item.key }}"
-
-# - name: Add export entries to /etc/exports
-#   ansible.builtin.blockinfile:
-#     path: /etc/exports
-#     block: |
-#       {{ item.value.path }} {{ allow_subnet }}(rw,sync,no_subtree_check,all_squash,anonuid=65534,anongid=65534)
-#     marker: "# {mark} ANSIBLE MANAGED BLOCK {{ item.key }}"
-#     create: true
-#     mode: "0644"
-#   loop: "{{ nfs_shares | dict2items }}"
-#   loop_control:
-#     label: "{{ item.key }}"

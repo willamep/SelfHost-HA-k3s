@@ -13,7 +13,7 @@
     values:
       nfs:
         server: "{{ nfs_server_ip }}"
-        path: "{{ nfs_share }}"
+        path: "{{ nfs_provisioner_share }}"
       storageClass:
         name: "{{ nfs_provisioner_storage_class }}"
         defaultClass: "{{ nfs_provisioner_default_class }}"
