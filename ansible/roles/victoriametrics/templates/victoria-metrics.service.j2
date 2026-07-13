@@ -1,0 +1,24 @@
+{{ ansible_managed | comment }}
+[Unit]
+Description=VictoriaMetrics single-node
+After=network-online.target
+Wants=network-online.target
+# Не стартовать, пока диск данных не смонтирован (иначе TSDB уйдёт на / под точку)
+RequiresMountsFor={{ victoriametrics_data_dir }}
+
+[Service]
+Type=simple
+User={{ victoriametrics_user }}
+Group={{ victoriametrics_user }}
+ExecStart={{ victoriametrics_bin }} \
+  -storageDataPath={{ victoriametrics_data_dir }} \
+  -httpListenAddr={{ victoriametrics_listen }} \
+  -retentionPeriod={{ victoriametrics_retention }} \
+  -dedup.minScrapeInterval={{ victoriametrics_dedup_interval }} \
+  -memory.allowedPercent={{ victoriametrics_memory_allowed_percent }}
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

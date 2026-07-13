@@ -10,5 +10,4 @@
     chart_ref: "{{ monitoring_chart_ref }}"
     release_namespace: "{{ monitoring_namespace }}"
     create_namespace: true
-    update_repo_cache: true
     values: "{{ lookup('template', role_path + '/templates/prod-values.yaml.j2') | from_yaml }}"

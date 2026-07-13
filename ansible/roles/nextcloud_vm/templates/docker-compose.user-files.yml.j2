@@ -1,0 +1,11 @@
+# Override: bind каталога пользователя с RAID внутрь датадира.
+# Подключается ПОСЛЕ первичной установки (см. tasks роли): инсталлятор
+# Nextcloud падает с "files already exist for this user", если data/<user>
+# существует до создания пользователя. Списки volumes в override дополняются.
+services:
+  app:
+    volumes:
+      - {{ nextcloud_user_files_src }}:/var/www/html/data/{{ nextcloud_admin_user }}
+  cron:
+    volumes:
+      - {{ nextcloud_user_files_src }}:/var/www/html/data/{{ nextcloud_admin_user }}

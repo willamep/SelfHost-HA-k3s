@@ -1,0 +1,23 @@
+---
+nextcloud_db_name: nextcloud
+nextcloud_db_user: nextcloud
+
+# Каталог compose-стека на системном диске ВМ
+nextcloud_stack_dir: /opt/nextcloud
+
+# Официальные образы: мажор пинится, bump — осознанным коммитом
+nextcloud_image: nextcloud:34-apache
+nextcloud_db_image: postgres:17
+nextcloud_redis_image: redis:8-alpine
+
+# uid/gid www-data внутри образа nextcloud — владелец датадира
+nextcloud_uid: 33
+nextcloud_gid: 33
+
+# Час начала окна обслуживания (UTC): 20:00 UTC = 03:00 по +07
+nextcloud_maintenance_window_start: 20
+
+# Первичная инсталляция (rsync кода + maintenance:install) занимает минуты —
+# столько ждём installed:true после первого compose up
+nextcloud_install_timeout_retries: 60
+nextcloud_install_timeout_delay: 10

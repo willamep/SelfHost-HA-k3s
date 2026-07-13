@@ -1,0 +1,65 @@
+services:
+  db:
+    image: {{ nextcloud_db_image }}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: {{ nextcloud_db_name }}
+      POSTGRES_USER: {{ nextcloud_db_user }}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db:/var/lib/postgresql/data  # локальный диск ВМ; БД никогда не на сетевой ФС
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ nextcloud_db_user }} -d {{ nextcloud_db_name }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: {{ nextcloud_redis_image }}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: {{ nextcloud_image }}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "{{ nextcloud_http_port }}:80"
+    env_file: .env
+    volumes:
+      # Весь инстанс (код, config, датадир с appdata) — на SSD ВМ; на RAID (HDD)
+      # только каталог пользователя — его bind добавляет override-файл
+      # docker-compose.user-files.yml ПОСЛЕ первичной установки: инсталлятор
+      # отказывается создавать админа, если data/<user> уже существует.
+      # html — bind-каталог (не volume): его владельца готовит ansible-роль
+      - {{ nextcloud_stack_dir }}/html:/var/www/html
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost/status.php | grep -q '\"installed\":true'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # первичная инсталляция не отвечает по HTTP несколько минут —
+      # аналог startupProbe из старого helm-чарта
+      start_period: 300s
+
+  # Фоновые задачи: /cron.sh в официальном образе дёргает cron.php каждые 5 минут
+  cron:
+    image: {{ nextcloud_image }}
+    restart: unless-stopped
+    entrypoint: /cron.sh
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - {{ nextcloud_stack_dir }}/html:/var/www/html
+
+volumes:
+  db:

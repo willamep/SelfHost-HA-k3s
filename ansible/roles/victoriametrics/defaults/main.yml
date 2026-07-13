@@ -1,0 +1,18 @@
+---
+victoriametrics_version: "v1.106.1"
+# sha256:<hash> для проверки тарбола; пусто = без проверки (можно запинить позже)
+victoriametrics_checksum: ""
+
+victoriametrics_user: victoriametrics
+victoriametrics_bin: /usr/local/bin/victoria-metrics-prod
+victoriametrics_version_file: /usr/local/bin/.victoria-metrics-version
+
+# Отдельный блочный диск (scsi1 из terraform) под TSDB, монтируется по UUID
+victoriametrics_data_device: /dev/sdb
+victoriametrics_data_dir: /var/lib/victoria-metrics
+
+victoriametrics_listen: ":8428"
+victoriametrics_retention: "12"        # число = месяцы хранения
+# Дедуп реплик Prometheus: должен равняться scrapeInterval (см. роль monitoring)
+victoriametrics_dedup_interval: "{{ prometheus_scrape_interval }}"
+victoriametrics_memory_allowed_percent: 60

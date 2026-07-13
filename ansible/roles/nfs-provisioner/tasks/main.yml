@@ -9,7 +9,6 @@
     chart_ref: "{{ nfs_provisioner_chart_ref }}"
     release_namespace: "{{ nfs_provisioner_namespace }}"
     create_namespace: true
-    update_repo_cache: true
     values:
       nfs:
         server: "{{ nfs_server_ip }}"

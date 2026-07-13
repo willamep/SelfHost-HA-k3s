@@ -1,25 +1,30 @@
 # ─────────────────────────────────────────────
 # Описание парка VM
 #
-# vm_id схема:  <нода><роль><номер>   →  N11 server, N12 agent, 110/113 infra
-#   1xx → Proxmox #0 (Nik-Node-0, 16 GB)
-#   2xx → Proxmox #1 (Nik-Node-1, 16 GB)
-#   3xx → Proxmox #2 (Nik-Node-2, 32 GB)
+# vm_id схема:  <нода><роль><номер>   →  N10 infra, N11 server, N12 agent
+#   1xx → Proxmox #0 (Nik-Node-0, 16 GB): nextcloud + server-1 + agent-1
+#   2xx → Proxmox #1 (Nik-Node-1, 16 GB): wireguard + server-2 + agent-2
+#   3xx → Proxmox #2 (Nik-Node-2, 32 GB): nfs-server + server-3 + agent-3
 #
 # Шаблон (var.template_id) лежит на ноде 2 → cross-node clone на ноды 0/1.
+#
+# В ВМ nextcloud вручную (qm set / GUI) пробрасывается физический RAID с
+# пользовательскими файлами — осознанный дрейф вне terraform, см.
+# docs/adr/0001-migrate-nextcloud-to-dedicated-vm.md. Внутри гостя диск
+# монтируется по UUID Ansible-ролью nextcloud_vm.
 # ─────────────────────────────────────────────
 
 locals {
   vms = {
     # ── Proxmox #0 (16 GB) ──────────────────────
-    "wireguard" = {
-      name   = "WireGuard"
+    "nextcloud" = {
+      name   = "nextcloud-1"
       vm_id  = 110
       node   = var.node_name_0
-      cores  = 1
-      memory = 750
-      disk   = 8
-      role   = "wireguard"
+      cores  = 2
+      memory = 2560
+      disk   = 40 # система + docker volumes (html, db); файлы — на проброшенном RAID
+      role   = "nextcloud"
     }
     "k3s-server-1" = {
       name   = "k3s-server-1" # init-нода кластера (--cluster-init)
@@ -39,19 +44,18 @@ locals {
       disk   = 200
       role   = "agents"
     }
-    "nfs-server" = {
-      name   = "nfs-server"
-      vm_id  = 113
-      node   = var.node_name_0
-      cores  = 1
-      memory = 1024
-      disk   = 50
-      role   = "nfs-server"
-    }
-
     # ── Proxmox #1 (16 GB) ──────────────────────
     # В ноде крайне маленький ssd 128 Gb
     # Из-за этого так же не делался Seph
+    "wireguard" = {
+      name   = "wireguard-1"
+      vm_id  = 210
+      node   = var.node_name_1
+      cores  = 1
+      memory = 750
+      disk   = 8
+      role   = "wireguard"
+    }
     "k3s-server-2" = {
       name   = "k3s-server-2"
       vm_id  = 211
@@ -72,12 +76,21 @@ locals {
     }
 
     # ── Proxmox #2 (32 GB) ──────────────────────
+    "nfs-server" = {
+      name   = "nfs-server-1"
+      vm_id  = 310
+      node   = var.node_name_2
+      cores  = 1
+      memory = 1024
+      disk   = 50
+      role   = "nfs_server"
+    }
     "k3s-server-3" = {
       name   = "k3s-server-3"
       vm_id  = 311
       node   = var.node_name_2
       cores  = 2
-      memory = 8192
+      memory = 3072
       disk   = 50
       role   = "servers"
     }
@@ -90,6 +103,19 @@ locals {
       disk   = 200
       role   = "agents"
     }
+    # VictoriaMetrics single: долговременное хранение метрик (remote_write из
+    # кластера). data_disk — отдельный блочный диск (scsi1) под TSDB, чтобы
+    # переполнение метрик не роняло системный диск ВМ.
+    "victoriametrics" = {
+      name      = "victoriametrics-1"
+      vm_id     = 313
+      node      = var.node_name_2
+      cores     = 2
+      memory    = 4096
+      disk      = 10 # ОС
+      data_disk = 20 # /var/lib/victoria-metrics
+      role      = "victoriametrics"
+    }
   }
 
   # Физические Proxmox-ноды (для ansible-инвентаря и outputs)
@@ -101,11 +127,13 @@ locals {
 
   # Статические IP (сеть 192.168.3.0/24). Ноды вне этой map — на DHCP.
   static_ips = {
-    "k3s-server-1" = "192.168.3.201"
-    "k3s-server-2" = "192.168.3.202"
-    "k3s-server-3" = "192.168.3.203"
-    "wireguard"    = "192.168.3.204"
-    "nfs-server"   = "192.168.3.205"
+    "k3s-server-1"    = "192.168.3.201"
+    "k3s-server-2"    = "192.168.3.202"
+    "k3s-server-3"    = "192.168.3.203"
+    "wireguard"       = "192.168.3.204"
+    "nfs-server"      = "192.168.3.205"
+    "nextcloud"       = "192.168.3.206"
+    "victoriametrics" = "192.168.3.207"
   }
 }
 
@@ -142,6 +170,19 @@ resource "proxmox_virtual_environment_vm" "vm" {
     interface    = "scsi0"
     size         = each.value.disk
     discard      = "on"
+  }
+
+  # Диск данных (scsi1) — только у ВМ, где задан data_disk. Ресурс общий на все
+  # ВМ через for_each; обычный второй disk-блок прицепился бы ко всем — dynamic
+  # включает его точечно (у остальных поля нет → пустой итератор → диска нет).
+  dynamic "disk" {
+    for_each = lookup(each.value, "data_disk", null) != null ? [each.value.data_disk] : []
+    content {
+      datastore_id = "local-lvm"
+      interface    = "scsi1"
+      size         = disk.value
+      discard      = "on"
+    }
   }
 
   network_device {

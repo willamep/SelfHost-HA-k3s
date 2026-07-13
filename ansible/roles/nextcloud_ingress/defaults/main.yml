@@ -1,0 +1,4 @@
+---
+nextcloud_namespace: nextcloud
+# Service без селектора: endpoints задаются вручную (EndpointSlice → IP ВМ)
+nextcloud_ingress_service_name: nextcloud-vm

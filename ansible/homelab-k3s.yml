@@ -1,5 +1,11 @@
+- name: Deploy WireGuard
+  hosts: wireguard
+  roles:
+    - role: wireguard
+      tags: ['wireguard']
+
 - name: Deploy NFS
-  hosts: nfs-server
+  hosts: nfs_server
   roles:
     - role: nfs_server
       tags: ['nfs_server']
@@ -26,7 +32,7 @@
       tags: ['nfs-provisioner']
 
 - name: Install node_exporter
-  hosts: nfs-server:wireguard
+  hosts: proxmox:nfs_server:wireguard:nextcloud:victoriametrics
   roles:
     - role: node_exporter
       tags: ['node_exporter']
@@ -37,6 +43,15 @@
   roles:
     - role: pve_exporter
       tags: ['pve_exporter']
+
+# VictoriaMetrics single: хранилище метрик для remote_write из кластера.
+# Ставим ДО monitoring, чтобы Prometheus было куда писать при старте.
+- name: Deploy VictoriaMetrics
+  hosts: victoriametrics
+  become: true
+  roles:
+    - role: victoriametrics
+      tags: ['victoriametrics']
 
 - name: Configure traefik ingress controller
   hosts: localhost
@@ -62,10 +77,24 @@
     - role: monitoring
       tags: ['monitoring']
 
-- name: Deploy nextcloud
+- name: Install docker on nextcloud VM
+  hosts: nextcloud
+  become: true
+  roles:
+    - role: docker
+      tags: ['docker']
+
+- name: Deploy nextcloud stack
+  hosts: nextcloud
+  become: true
+  roles:
+    - role: nextcloud_vm
+      tags: ['nextcloud_vm']
+
+- name: Configure nextcloud ingress (cluster traefik -> VM)
   hosts: localhost
   run_once: true
   become: false
   roles:
-    - role: nextcloud
-      tags: ['nextcloud']
+    - role: nextcloud_ingress
+      tags: ['nextcloud_ingress']

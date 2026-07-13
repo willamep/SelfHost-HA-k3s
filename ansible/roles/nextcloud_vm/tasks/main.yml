@@ -1,0 +1,143 @@
+---
+- name: Mount data disk by UUID
+  ansible.posix.mount:
+    src: "UUID={{ nextcloud_data_uuid }}"
+    path: "{{ nextcloud_data_mount }}"
+    fstype: ext4
+    opts: defaults,nofail
+    state: mounted
+
+# С nofail задача выше молча проходит, даже если диск не проброшен, — тогда
+# docker создал бы каталоги на системном диске под точкой монтирования.
+# findmnt возвращает ошибку, если по пути не смонтирована ФС с нужным UUID.
+- name: Verify data disk is mounted
+  ansible.builtin.command:
+    cmd: findmnt -rn -M {{ nextcloud_data_mount }} -S UUID={{ nextcloud_data_uuid }}
+  changed_when: false
+
+- name: Create stack directory
+  ansible.builtin.file:
+    path: "{{ nextcloud_stack_dir }}"
+    state: directory
+    mode: "0750"
+
+# html — bind-каталог на SSD (вместо named volume): владельца задаём до старта
+# стека. Иначе docker создаёт /var/www/html/data (родитель точки монтирования
+# пользовательского каталога) как root:root, entrypoint не чинит владельца
+# непустого data, www-data не может писать — и инсталляция падает
+- name: Create html dir and datadir owned by www-data
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ nextcloud_stack_dir }}/html", mode: "0755" }
+    - { path: "{{ nextcloud_stack_dir }}/html/data", mode: "0770" }
+
+# Каталог пользователя на RAID монтируется в датадир контейнера
+# (data/<admin_user>); www-data должен им владеть — иначе Nextcloud не сможет
+# создавать в нём cache/uploads/trashbin (chown -R содержимого — шаг ранбука)
+- name: Ensure user files dir on RAID owned by www-data
+  ansible.builtin.file:
+    path: "{{ nextcloud_user_files_src }}"
+    state: directory
+    owner: "{{ nextcloud_uid }}"
+    group: "{{ nextcloud_gid }}"
+
+- name: Template docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ nextcloud_stack_dir }}/docker-compose.yml"
+    mode: "0640"
+
+# override подхватывается compose автоматически — ручной `docker compose up`
+# на ВМ тоже получит bind пользовательских файлов
+- name: Template user files override
+  ansible.builtin.template:
+    src: docker-compose.user-files.yml.j2
+    dest: "{{ nextcloud_stack_dir }}/docker-compose.override.yml"
+    mode: "0640"
+
+- name: Template .env with secrets
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ nextcloud_stack_dir }}/.env"
+    mode: "0600"
+
+- name: Check for existing installation
+  ansible.builtin.stat:
+    path: "{{ nextcloud_stack_dir }}/html/config/config.php"
+  register: nextcloud_config_php
+
+# Первичная установка выполняется БЕЗ bind'а каталога пользователя (только
+# базовый compose-файл): инсталлятор отказывает, если data/<user> уже
+# существует. Для установленного инстанса — обычный up со всеми файлами.
+- name: Start nextcloud stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ nextcloud_stack_dir }}"
+    files: "{{ ['docker-compose.yml'] if not nextcloud_config_php.stat.exists else omit }}"
+    state: present
+
+- name: Wait for nextcloud installation
+  ansible.builtin.command:
+    cmd: docker compose exec -T -u www-data app php occ status --output=json
+    chdir: "{{ nextcloud_stack_dir }}"
+  register: nextcloud_status
+  changed_when: false
+  retries: "{{ nextcloud_install_timeout_retries }}"
+  delay: "{{ nextcloud_install_timeout_delay }}"
+  until:
+    - nextcloud_status.rc == 0
+    - (nextcloud_status.stdout | from_json).installed | default(false)
+
+# После успешной установки app/cron пересоздаются уже с bind'ом каталога
+# пользователя (override). Скелетные файлы установки остаются скрытыми под
+# точкой монтирования; oc_filecache приводится в порядок шагом files:scan
+- name: Attach user files bind
+  community.docker.docker_compose_v2:
+    project_src: "{{ nextcloud_stack_dir }}"
+    state: present
+  when: not nextcloud_config_php.stat.exists
+
+- name: Get background jobs mode
+  ansible.builtin.command:
+    cmd: >-
+      docker compose exec -T -u www-data app
+      php occ config:app:get core backgroundjobs_mode --default-value=ajax
+    chdir: "{{ nextcloud_stack_dir }}"
+  register: nextcloud_backgroundjobs_mode
+  changed_when: false
+
+- name: Switch background jobs to cron
+  ansible.builtin.command:
+    cmd: docker compose exec -T -u www-data app php occ background:cron
+    chdir: "{{ nextcloud_stack_dir }}"
+  when: "'cron' not in nextcloud_backgroundjobs_mode.stdout"
+
+- name: Get maintenance window start
+  ansible.builtin.command:
+    cmd: >-
+      docker compose exec -T -u www-data app
+      php occ config:system:get maintenance_window_start --default-value=-1
+    chdir: "{{ nextcloud_stack_dir }}"
+  register: nextcloud_maintenance_window
+  changed_when: false
+
+- name: Set maintenance window start
+  ansible.builtin.command:
+    cmd: >-
+      docker compose exec -T -u www-data app
+      php occ config:system:set maintenance_window_start
+      --type=integer --value={{ nextcloud_maintenance_window_start }}
+    chdir: "{{ nextcloud_stack_dir }}"
+  when: nextcloud_maintenance_window.stdout | trim != (nextcloud_maintenance_window_start | string)
+
+# Разовый шаг ранбука после ручного переноса старых файлов в датадир:
+# ansible-playbook ... --tags nextcloud_scan
+- name: Scan user files into nextcloud
+  ansible.builtin.command:
+    cmd: docker compose exec -T -u www-data app php occ files:scan --all
+    chdir: "{{ nextcloud_stack_dir }}"
+  tags: ['never', 'nextcloud_scan']

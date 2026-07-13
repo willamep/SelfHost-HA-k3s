@@ -1,0 +1,103 @@
+---
+# ── Диск данных ─────────────────────────────────────────────
+# TSDB на отдельном блочном диске (scsi1): переполнение метрик не роняет
+# системный диск ВМ. Диск свежий → форматируем и монтируем по UUID.
+- name: Create ext4 filesystem on data disk
+  community.general.filesystem:
+    fstype: ext4
+    dev: "{{ victoriametrics_data_device }}"
+
+- name: Get data disk UUID
+  ansible.builtin.command:
+    cmd: "blkid -s UUID -o value {{ victoriametrics_data_device }}"
+  register: victoriametrics_data_uuid
+  changed_when: false
+
+- name: Mount data disk by UUID
+  ansible.posix.mount:
+    src: "UUID={{ victoriametrics_data_uuid.stdout }}"
+    path: "{{ victoriametrics_data_dir }}"
+    fstype: ext4
+    opts: defaults,nofail
+    state: mounted
+
+# nofail молча проходит, даже если диск не появился, — тогда VM писал бы TSDB
+# на системный диск под точкой монтирования. findmnt падает, если по пути не
+# смонтирована ФС с нужным UUID.
+- name: Verify data disk is mounted
+  ansible.builtin.command:
+    cmd: "findmnt -rn -M {{ victoriametrics_data_dir }} -S UUID={{ victoriametrics_data_uuid.stdout }}"
+  changed_when: false
+
+# ── Пользователь и права ────────────────────────────────────
+- name: Create victoriametrics system user
+  ansible.builtin.user:
+    name: "{{ victoriametrics_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ victoriametrics_data_dir }}"
+    create_home: false
+
+- name: Own data dir
+  ansible.builtin.file:
+    path: "{{ victoriametrics_data_dir }}"
+    state: directory
+    owner: "{{ victoriametrics_user }}"
+    group: "{{ victoriametrics_user }}"
+    mode: "0750"
+
+# ── Бинарь (идемпотентно, с поддержкой апгрейда по version-маркеру) ──
+- name: Stat installed version marker
+  ansible.builtin.stat:
+    path: "{{ victoriametrics_version_file }}"
+  register: victoriametrics_marker
+
+- name: Read installed version
+  ansible.builtin.slurp:
+    src: "{{ victoriametrics_version_file }}"
+  register: victoriametrics_installed_raw
+  when: victoriametrics_marker.stat.exists
+
+- name: Set installed version fact
+  ansible.builtin.set_fact:
+    victoriametrics_installed_version: >-
+      {{ (victoriametrics_installed_raw.content | b64decode | trim)
+         if victoriametrics_marker.stat.exists else '' }}
+
+- name: Install/upgrade VictoriaMetrics binary
+  ansible.builtin.unarchive:
+    src: "https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/{{ victoriametrics_version }}/victoria-metrics-linux-amd64-{{ victoriametrics_version }}.tar.gz"
+    remote_src: true
+    dest: /usr/local/bin
+    owner: root
+    group: root
+    mode: "0755"
+    checksum: "{{ victoriametrics_checksum | default(omit, true) }}"
+  when: victoriametrics_installed_version != victoriametrics_version
+  notify: Restart victoriametrics
+
+- name: Record installed version
+  ansible.builtin.copy:
+    content: "{{ victoriametrics_version }}\n"
+    dest: "{{ victoriametrics_version_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: victoriametrics_installed_version != victoriametrics_version
+
+# ── systemd ─────────────────────────────────────────────────
+- name: Template systemd unit
+  ansible.builtin.template:
+    src: victoria-metrics.service.j2
+    dest: /etc/systemd/system/victoria-metrics.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart victoriametrics
+
+- name: Enable and start VictoriaMetrics
+  ansible.builtin.systemd:
+    name: victoria-metrics
+    enabled: true
+    state: started
+    daemon_reload: true

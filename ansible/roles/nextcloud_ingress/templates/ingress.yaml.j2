@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ nextcloud_ingress_service_name }}
+  namespace: {{ nextcloud_namespace }}
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: "{{ nextcloud_namespace }}-hsts@kubernetescrd"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: {{ nextcloud_domain }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ nextcloud_ingress_service_name }}
+                port:
+                  name: http
+  tls:
+    - secretName: nextcloud-tls
+      hosts:
+        - {{ nextcloud_domain }}

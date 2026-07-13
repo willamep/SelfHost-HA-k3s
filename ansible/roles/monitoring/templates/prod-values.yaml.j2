@@ -1,14 +1,27 @@
 prometheus:
   prometheusSpec:
+    # HA дублированием: 2 реплики скрейпят одни таргеты, обе пишут в VM, VM
+    # дедуплицирует. local-path — node-local: реплика пинится к ноде, при её
+    # падении pod не переедет (PV локальный) — это ОК, вторая реплика продолжает.
+    replicas: {{ monitoring_prometheus_replicas }}
+    scrapeInterval: {{ prometheus_scrape_interval }}
     retention: {{ monitoring_retention }}
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: nfs-client
+          storageClassName: local-path
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
               storage: {{ monitoring_storage.prometheus }}
+    # Долговременное хранение — в VictoriaMetrics. Оператор вешает внешний label
+    # prometheus_replica (серии реплик разные) → дропаем его перед отправкой,
+    # чтобы серии совпали и VM их схлопнула (-dedup.minScrapeInterval на VM).
+    remoteWrite:
+      - url: http://{{ victoriametrics_ip }}:8428/api/v1/write
+        writeRelabelConfigs:
+          - action: labeldrop
+            regex: prometheus_replica
     additionalScrapeConfigs:
 {% for job in monitoring_external_jobs %}
       - job_name: {{ job.job_name }}
@@ -55,6 +68,18 @@ grafana:
     storageClassName: nfs-client
     accessModes: ["ReadWriteOnce"]
     size: {{ monitoring_storage.grafana }}
+  # Снимаем default с встроенного Prometheus-datasource, иначе default'ов два.
+  sidecar:
+    datasources:
+      defaultDatasourceEnabled: false
+  # Дашборды строятся против VM (полная история); встроенный Prometheus
+  # (local-path, 2d) остаётся для дебага буфера/правил, но не default.
+  additionalDataSources:
+    - name: VictoriaMetrics
+      type: prometheus
+      url: http://{{ victoriametrics_ip }}:8428
+      access: proxy
+      isDefault: true
   grafana.ini:
     server:
       root_url: "https://{{ grafana_domain }}/"
