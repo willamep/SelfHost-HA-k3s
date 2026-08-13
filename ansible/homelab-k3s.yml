@@ -98,3 +98,13 @@
   roles:
     - role: nextcloud_ingress
       tags: ['nextcloud_ingress']
+
+# В данный момент роль lm-studio не работает корректно и её разработка прекращена
+# т.к. не актуальна.
+
+#- name: Install lm-studio
+#  hosts: lm-studio
+#  become: false
+#  roles:
+#    - role: lm_studio
+#      tags: ['lm-studio']

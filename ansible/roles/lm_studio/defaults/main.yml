@@ -1,0 +1,2 @@
+lmstudio_install_url: "https://lmstudio.ai/install.sh"
+lmstudio_install_user: "{{ ansible_user }}"

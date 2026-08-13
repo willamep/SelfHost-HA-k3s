@@ -1,0 +1,38 @@
+- name: Install LM Studio dependencies
+  ansible.builtin.apt:
+    name:
+      - libatomic1
+    state: present
+    update_cache: true
+  become: true
+  when:
+    - lmstudio_cli_check.rc != 0
+    - ansible_os_family == "Debian"
+
+- name: Get LM Studio user information
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ lmstudio_install_user }}"
+  when: lmstudio_cli_check.rc != 0
+
+- name: Download LM Studio installation script
+  ansible.builtin.get_url:
+    url: "{{ lmstudio_install_url }}"
+    dest: /tmp/lmstudio-install.sh
+    mode: "0755"
+  when: lmstudio_cli_check.rc != 0
+
+- name: Install LM Studio
+  ansible.builtin.command:
+    cmd: bash /tmp/lmstudio-install.sh
+  become: true
+  become_user: "{{ lmstudio_install_user }}"
+  environment:
+    HOME: "{{ ansible_facts['getent_passwd'][lmstudio_install_user][4] }}"
+  when: lmstudio_cli_check.rc != 0
+
+- name: Remove LM Studio installation script
+  ansible.builtin.file:
+    path: /tmp/lmstudio-install.sh
+    state: absent
+  become: true
