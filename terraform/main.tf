@@ -1,18 +1,17 @@
-# ─────────────────────────────────────────────
-# Описание парка VM
+# ───────────────────────────────────────────────────────────────────────
+# Описание парка VM:
 #
-# vm_id схема:  <нода><роль><номер>   →  N10 infra, N11 server, N12 agent
-#   1xx → Proxmox #0 (Nik-Node-0, 16 GB): nextcloud + server-1 + agent-1
-#   2xx → Proxmox #1 (Nik-Node-1, 16 GB): wireguard + server-2 + agent-2
-#   3xx → Proxmox #2 (Nik-Node-2, 32 GB): nfs-server + server-3 + agent-3
+# vm_id схема:  <нода><10-99>
+#   1xx → Proxmox #0 (Nik-Node-0, 16 GB RAM):
+#   2xx → Proxmox #1 (Nik-Node-1, 16 GB RAM):
+#   3xx → Proxmox #2 (Nik-Node-2, 32 GB RAM):
 #
 # Шаблон (var.template_id) лежит на ноде 2 → cross-node clone на ноды 0/1.
 #
-# В ВМ nextcloud вручную (qm set / GUI) пробрасывается физический RAID с
-# пользовательскими файлами — осознанный дрейф вне terraform, см.
-# docs/adr/0001-migrate-nextcloud-to-dedicated-vm.md. Внутри гостя диск
-# монтируется по UUID Ansible-ролью nextcloud_vm.
-# ─────────────────────────────────────────────
+# В ВМ nextcloud вручную пробрасывается физический RAID с
+# пользовательскими файлами — осознанный дрейф вне terraform.
+# Внутри гостя диск монтируется по UUID Ansible-ролью nextcloud_vm.
+# ───────────────────────────────────────────────────────────────────────
 
 locals {
   vms = {
@@ -46,7 +45,6 @@ locals {
     }
     # ── Proxmox #1 (16 GB) ──────────────────────
     # В ноде крайне маленький ssd 128 Gb
-    # Из-за этого так же не делался Seph
     "wireguard" = {
       name   = "wireguard-1"
       vm_id  = 210
@@ -116,6 +114,18 @@ locals {
       data_disk = 20 # /var/lib/victoria-metrics
       role      = "victoriametrics"
     }
+
+    # LM Studio работает некорректно; разработка роли остановлена за
+    # ненадобностью. Конфигурация сохранена на случай возобновления работ.
+    # "lm-studio" = {
+    #   name      = "lm-studio-1"
+    #   vm_id     = 314
+    #   node      = var.node_name_2
+    #   cores     = 2
+    #   memory    = 20480
+    #   disk      = 50 # ОС
+    #   role      = "lm-studio"
+    # }
   }
 
   # Физические Proxmox-ноды (для ansible-инвентаря и outputs)
@@ -134,6 +144,7 @@ locals {
     "nfs-server"      = "192.168.3.205"
     "nextcloud"       = "192.168.3.206"
     "victoriametrics" = "192.168.3.207"
+    # "lm-studio"       = "192.168.3.208"
   }
 }
 
