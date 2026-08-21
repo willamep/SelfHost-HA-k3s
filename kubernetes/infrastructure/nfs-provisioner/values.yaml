@@ -1,0 +1,8 @@
+nfs:
+  server: 192.168.3.205
+  path: /srv/nfs/
+
+storageClass:
+  name: nfs-client
+  defaultClass: false
+  archiveOnDelete: "false"
