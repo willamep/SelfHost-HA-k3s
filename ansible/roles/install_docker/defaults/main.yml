@@ -1,0 +1,16 @@
+---
+# Официальная инструкция:
+# https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository
+docker_apt_key_url: https://download.docker.com/linux/ubuntu/gpg
+docker_apt_keyring: /etc/apt/keyrings/docker.asc
+docker_apt_repo_url: https://download.docker.com/linux/ubuntu
+# dpkg-архитектура (amd64), а не ansible_architecture (x86_64) —
+# аналог $(dpkg --print-architecture) из инструкции
+docker_apt_arch: "{{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else ansible_facts['architecture'] }}"
+# Набор пакетов из шага 2 инструкции
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
