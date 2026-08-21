@@ -1,0 +1,6 @@
+{
+  "type": "helm",
+  "repoURL": "https://traefik.github.io/charts",
+  "chart": "traefik",
+  "targetRevision": "41.2.0"
+}

@@ -1,0 +1,104 @@
+prometheus:
+  prometheusSpec:
+    # HA-дублирование на локальных дисках
+    replicas: 2
+    scrapeInterval: "30s"
+    retention: "2d"
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: "10Gi"
+
+    # Автоматическое монтирование нашего ConfigMap как папки внутрь пода Prometheus
+    configMaps:
+      - external-targets-cm
+
+    # Отправка метрик в VictoriaMetrics с дедупликацией
+    remoteWrite:
+      - url: "http://192.168.3.207:8428/api/v1/write"
+        writeRelabelConfigs:
+          - action: labeldrop
+            regex: prometheus_replica
+
+    # Конфигурация динамического чтения файлов, сгенерированных Terraform/Ansible
+    additionalScrapeConfigs:
+      - job_name: "external-nodes-automation"
+        file_sd_configs:
+          - files:
+              # Путь, куда Kubernetes автоматически смонтирует файлы из ConfigMap
+              - "/etc/prometheus/configmaps/external-targets-cm/targets.json"
+
+  ingress:
+    enabled: false
+  service:
+    type: ClusterIP
+
+alertmanager:
+  alertmanagerSpec:
+    replicas: 2
+    podAntiAffinity: "hard"
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: nfs-client
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: "5Gi"
+  ingress:
+    enabled: false
+
+grafana:
+  enabled: true
+  initChownData:
+    enabled: false     # Отключаем init-контейнер для NFS
+  persistence:
+    enabled: true
+    storageClassName: nfs-client
+    accessModes: ["ReadWriteOnce"]
+    size: "10Gi"
+
+  # Ссылка на предварительно созданный вручную Kubernetes Secret
+  admin:
+    existingSecret: "grafana-admin-credentials"
+    userKey: "admin-user"
+    passwordKey: "admin-password"
+
+  sidecar:
+    datasources:
+      defaultDatasourceEnabled: false
+
+  additionalDataSources:
+    - name: VictoriaMetrics
+      type: prometheus
+      url: "http://192.168.3.207:8428"
+      access: proxy
+      isDefault: true
+
+  grafana.ini:
+    server:
+      root_url: "https://grafana.avocatocat.ru"
+
+  # Настройка Ingress для Traefik, принимающего расшифрованный HTTP-трафик
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations: {}
+    hosts:
+      - "grafana.avocatocat.ru"
+    path: /
+    tls: []
+
+  service:
+    type: ClusterIP
+
+prometheus-node-exporter:
+  tolerations:
+    - key: "CriticalAddonsOnly"
+      operator: "Equal"
+      value: "true"
+      effect: "NoExecute"
