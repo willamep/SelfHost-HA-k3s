@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tictactoe
+  namespace: tictactoe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tictactoe
+  template:
+    metadata:
+      labels:
+        app: tictactoe
+    spec:
+      containers:
+        - name: tictactoe
+          image: avocatocat/tictactoe:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: tictactoe-db
+                  key: DATABASE_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tictactoe
+  namespace: tictactoe
+spec:
+  selector:
+    app: tictactoe
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tictactoe
+  namespace: tictactoe
+  annotations: {}
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: "tic-tac-toe.avocatocat.ru"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tictactoe
+                port:
+                  number: 80
