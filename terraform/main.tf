@@ -15,136 +15,103 @@
 
 locals {
   vms = {
-    # ── Proxmox #0 (16 GB) ──────────────────────
-    "nextcloud" = {
-      name   = "nextcloud-1"
-      vm_id  = 110
+    # ── Proxmox #0 ──────────────────────────────
+    "k3s-server-1" = {
+      name   = "k3s-server-dev-1"
+      vm_id  = 900
+      node   = var.node_name_0
+      cores  = 2
+      memory = 1536
+      disk   = 30
+      role   = "servers"
+    }
+
+    "k3s-agent-1" = {
+      name   = "k3s-agent-dev-1"
+      vm_id  = 901
       node   = var.node_name_0
       cores  = 2
       memory = 2560
-      disk   = 40 # система + docker volumes (html, db); файлы — на проброшенном RAID
-      role   = "nextcloud"
-    }
-    "k3s-server-1" = {
-      name   = "k3s-server-1" # init-нода кластера (--cluster-init)
-      vm_id  = 111
-      node   = var.node_name_0
-      cores  = 2
-      memory = 2048
-      disk   = 50
-      role   = "servers"
-    }
-    "k3s-agent-1" = {
-      name   = "k3s-agent-1"
-      vm_id  = 112
-      node   = var.node_name_0
-      cores  = 6
-      memory = 9216
-      disk   = 200
-      role   = "agents"
-    }
-    # ── Proxmox #1 (16 GB) ──────────────────────
-    # В ноде крайне маленький ssd 128 Gb
-    "wireguard" = {
-      name   = "wireguard-1"
-      vm_id  = 210
-      node   = var.node_name_1
-      cores  = 1
-      memory = 750
-      disk   = 8
-      role   = "wireguard"
-    }
-    "k3s-server-2" = {
-      name   = "k3s-server-2"
-      vm_id  = 211
-      node   = var.node_name_1
-      cores  = 2
-      memory = 2048
-      disk   = 10
-      role   = "servers"
-    }
-    "k3s-agent-2" = {
-      name   = "k3s-agent-2"
-      vm_id  = 212
-      node   = var.node_name_1
-      cores  = 6
-      memory = 10240
-      disk   = 35
+      disk   = 30
       role   = "agents"
     }
 
-    # ── Proxmox #2 (32 GB) ──────────────────────
+    # ── Proxmox #1 ──────────────────────────────
+    "k3s-server-2" = {
+      name   = "k3s-server-dev-2"
+      vm_id  = 902
+      node   = var.node_name_1
+      cores  = 2
+      memory = 1536
+      disk   = 30
+      role   = "servers"
+    }
+
+    "k3s-agent-2" = {
+      name   = "k3s-agent-dev-2"
+      vm_id  = 903
+      node   = var.node_name_1
+      cores  = 2
+      memory = 2560
+      disk   = 30
+      role   = "agents"
+    }
+
+    # ── Proxmox #2 ──────────────────────────────
+    "k3s-server-3" = {
+      name   = "k3s-server-dev-3"
+      vm_id  = 904
+      node   = var.node_name_2
+      cores  = 2
+      memory = 2560
+      disk   = 30
+      role   = "servers"
+    }
+
+    "k3s-agent-3" = {
+      name   = "k3s-agent-dev-3"
+      vm_id  = 905
+      node   = var.node_name_2
+      cores  = 2
+      memory = 2560
+      disk   = 30
+      role   = "agents"
+    }
+
     "nfs-server" = {
-      name   = "nfs-server-1"
-      vm_id  = 310
+      name   = "nfs-server-dev-1"
+      vm_id  = 906
       node   = var.node_name_2
       cores  = 1
       memory = 1024
-      disk   = 50
+      disk   = 30
       role   = "nfs_server"
     }
-    "k3s-server-3" = {
-      name   = "k3s-server-3"
-      vm_id  = 311
-      node   = var.node_name_2
-      cores  = 2
-      memory = 3072
-      disk   = 50
-      role   = "servers"
-    }
-    "k3s-agent-3" = {
-      name   = "k3s-agent-3"
-      vm_id  = 312
-      node   = var.node_name_2
-      cores  = 6
-      memory = 20480
-      disk   = 200
-      role   = "agents"
-    }
-    # VictoriaMetrics single: долговременное хранение метрик (remote_write из
-    # кластера). data_disk — отдельный блочный диск (scsi1) под TSDB, чтобы
-    # переполнение метрик не роняло системный диск ВМ.
+
     "victoriametrics" = {
-      name      = "victoriametrics-1"
-      vm_id     = 313
+      name      = "victoriametrics-dev-1"
+      vm_id     = 907
       node      = var.node_name_2
       cores     = 2
-      memory    = 4096
-      disk      = 10 # ОС
-      data_disk = 20 # /var/lib/victoria-metrics
+      memory    = 2048
+      disk      = 10
+      data_disk = 20
       role      = "victoriametrics"
     }
-
-    # LM Studio работает некорректно; разработка роли остановлена за
-    # ненадобностью. Конфигурация сохранена на случай возобновления работ.
-    # "lm-studio" = {
-    #   name      = "lm-studio-1"
-    #   vm_id     = 314
-    #   node      = var.node_name_2
-    #   cores     = 2
-    #   memory    = 20480
-    #   disk      = 50 # ОС
-    #   role      = "lm-studio"
-    # }
   }
 
-  # Физические Proxmox-ноды (для ansible-инвентаря и outputs)
   proxmox_nodes = {
     (var.node_name_0) = var.node_0_ip
     (var.node_name_1) = var.node_1_ip
     (var.node_name_2) = var.node_2_ip
   }
 
-  # Статические IP (сеть 192.168.3.0/24). Ноды вне этой map — на DHCP.
   static_ips = {
     "k3s-server-1"    = "192.168.3.201"
     "k3s-server-2"    = "192.168.3.202"
     "k3s-server-3"    = "192.168.3.203"
-    "wireguard"       = "192.168.3.204"
     "nfs-server"      = "192.168.3.205"
-    "nextcloud"       = "192.168.3.206"
     "victoriametrics" = "192.168.3.207"
-    # "lm-studio"       = "192.168.3.208"
   }
 }
 
