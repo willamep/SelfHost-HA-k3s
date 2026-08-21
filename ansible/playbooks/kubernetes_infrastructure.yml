@@ -29,6 +29,7 @@
 - name: Deploy ArgoCD
   hosts: localhost
   gather_facts: false
+  become: false
   vars:
     ansible_kubernetes_vars:
       kubeconfig: "{{ localhost_kubeconfig }}"
