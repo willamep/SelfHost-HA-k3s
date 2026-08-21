@@ -1,4 +1,4 @@
-- name: Add Argo Helm repository
+- name: Add ArgoCD Helm repository
   kubernetes.core.helm_repository:
     name: argo
     repo_url: "{{ argocd_helm_repo_url }}"

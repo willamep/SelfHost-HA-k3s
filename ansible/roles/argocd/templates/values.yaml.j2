@@ -1,6 +1,9 @@
 global:
   domain: {{ argocd_domain }}
 
+ha:
+  enabled: true
+
 configs:
   params:
     server.insecure: "true"
