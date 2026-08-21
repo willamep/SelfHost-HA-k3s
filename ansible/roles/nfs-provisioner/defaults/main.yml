@@ -1,4 +1,0 @@
-nfs_provisioner_namespace: nfs-provisioner
-nfs_provisioner_release_name: nfs-provisioner
-nfs_provisioner_storage_class: nfs-client
-nfs_provisioner_default_class: false
