@@ -1,0 +1,35 @@
+- name: Deploy NFS
+  hosts: nfs_server
+  roles:
+    - role: nfs_server
+      tags: ['nfs_server']
+
+# VictoriaMetrics single: хранилище метрик для remote_write из кластера.
+# Ставим ДО monitoring, чтобы Prometheus было куда писать при старте.
+- name: Deploy VictoriaMetrics
+  hosts: victoriametrics
+  become: true
+  roles:
+    - role: victoriametrics
+      tags: ['victoriametrics']
+
+- name: Deploy HA k3s control plane
+  hosts: servers
+  serial: [1, 2] # batch1 = init-server; batch2 = join-servers
+  roles:
+    - role: k3s_servers
+      tags: ['k3s_servers']
+
+- name: Deploy HA k3s agents
+  hosts: agents
+  roles:
+    - role: k3s_agents
+      tags: ['k3s_agents']
+
+- name: Deploy ArgoCD
+  hosts: servers[0]
+  become: true
+  gather_facts: false
+  roles:
+    - role: argocd
+      tags: ['argocd']
