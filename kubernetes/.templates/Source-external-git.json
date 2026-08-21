@@ -1,0 +1,6 @@
+{
+  "type": "git",
+  "repoURL": "https://github.com",
+  "targetRevision": "v1.4.2",
+  "path": "deploy/kubernetes/manifests"
+}
