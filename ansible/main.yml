@@ -1,0 +1,18 @@
+# 1. Сетевой уровень и проксирование
+- name: Deploy Edge Proxy
+  import_playbook: playbooks/edge-proxy.yml
+
+- name: Deploy Wireguard VPN
+  import_playbook: playbooks/wireguard.yml
+
+# 2. Базовая инфраструктура и оркестрация
+- name: Deploy Kubernetes Infrastructure
+  import_playbook: playbooks/kubernetes_infrastructure.yml
+
+# 3. Сервисы и пользовательские приложения
+- name: Deploy Nextcloud
+  import_playbook: playbooks/nextcloud.yml
+
+# 4. Мониторинг и сбор метрик
+- name: Deploy External Metric Exporters
+  import_playbook: playbooks/external_exporters.yml
