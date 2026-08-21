@@ -27,9 +27,11 @@
       tags: ['k3s_agents']
 
 - name: Deploy ArgoCD
-  hosts: servers[0]
-  become: true
+  hosts: localhost
   gather_facts: false
+  vars:
+    ansible_kubernetes_vars:
+      kubeconfig: "{{ localhost_kubeconfig }}"
   roles:
     - role: argocd
       tags: ['argocd']
