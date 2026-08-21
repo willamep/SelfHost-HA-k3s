@@ -1,0 +1,17 @@
+- name: Add Argo Helm repository
+  kubernetes.core.helm_repository:
+    name: argo
+    repo_url: "{{ argocd_helm_repo_url }}"
+
+- name: Install ArgoCD
+  kubernetes.core.helm:
+    name: argocd
+    chart_ref: argo/argo-cd
+    release_namespace: argocd
+    create_namespace: true
+    values: "{{ lookup('template', 'values.yaml.j2') | from_yaml }}"
+
+- name: Apply ArgoCD-bootstrap
+  kubernetes.core.k8s:
+    template: argocd-bootstrap.yaml.j2
+    state: present
