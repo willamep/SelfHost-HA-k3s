@@ -1,8 +1,9 @@
 nfs:
-  server: 192.168.3.205
-  path: /srv/nfs/
+  server: "192.168.3.205"
+  # Путь для динамических PV на сервере
+  path: "/srv/nfs/"
 
 storageClass:
-  name: nfs-client
+  name: "nfs-client"
   defaultClass: false
-  archiveOnDelete: "false"
+  archiveOnDelete: false
