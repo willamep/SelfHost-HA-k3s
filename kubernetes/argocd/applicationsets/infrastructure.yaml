@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: infrastructure
+  namespace: argocd
+
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+
+  generators:
+    - git:
+        repoURL: https://github.com/willamep/selfhost-ha-k3s.git
+        # Смотрит на ветку, указанную в bootstrap
+        revision: '{{ .generator.git.revision }}'
+        files:
+          - path: kubernetes/infrastructure/*/Source.json
+
+  template:
+    metadata:
+      name: '{{ .path.basename }}'
+      annotations:
+        # Если в JSON есть "wave", берем его, иначе по дефолту ставим "0"
+        argocd.argoproj.io/sync-wave: '{{ default "0" (index . "wave") }}'
+
+    spec:
+      project: infrastructure
+
+      {{- if eq .type "helm" }}
+      sources:
+        - repoURL: '{{ .repoURL }}'
+          chart: '{{ .chart }}'
+          targetRevision: '{{ .targetRevision }}'
+          helm:
+            ignoreMissingValueFiles: true
+            valueFiles:
+              - $values/{{ .path.path }}/values.yaml
+
+        - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
+          targetRevision: '{{ .generator.git.revision }}'
+          path: '{{ .path.path }}'
+          ref: values
+
+        # Additional Kubernetes manifests
+        {{- if and (index . "hasManifests") .hasManifests }}
+        - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
+          targetRevision: '{{ .generator.git.revision }}'
+          path: '{{ .path.path }}/manifests'
+        {{- end }}
+
+      {{- else if eq .type "git" }}
+      source:
+        # Если в JSON есть "repoURL", берем его. Если нет — берем основной репозиторий.
+        repoURL: '{{ default "https://github.com/willamep/selfhost-ha-k3s.git" (index . "repoURL") }}'
+
+        # Если в JSON есть "targetRevision", берем его, иначе — ветку из bootstrap.
+        targetRevision: '{{ default .generator.git.revision (index . "targetRevision") }}'
+
+        # Если в JSON есть "path", берем его (для внешних репозиториев),
+        # иначе — автоматически вычисляем локальный путь к текущей папке.
+        path: '{{ default .path.path (index . "path") }}'
+      {{- end }}
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .path.basename }}'
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
