@@ -5,8 +5,7 @@ ports:
     exposedPort: 80
     protocol: TCP
     # Настройка доверия к внешнему прокси, который присылает расшифрованный трафик
-    forwardedHeaders:
-      insecure: true # Позволяет Traefik принимать заголовки X-Forwarded-Proto (HTTP/HTTPS) от внешнего шлюза
+    websecure: null # Позволяет Traefik принимать заголовки X-Forwarded-Proto (HTTP/HTTPS) от внешнего шлюза
 
   # Отключаем стандартный TLS порт websecure, так как трафик уже расшифрован
   websecure:
