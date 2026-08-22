@@ -11,23 +11,42 @@ spec:
 
   generators:
     - git:
-        repoURL: https://github.com/willamep/selfhost-ha-k3s.git
-        # Смотрит на ветку, указанную в bootstrap
+        repoURL: https://github.com
         revision: '{{ .generator.git.revision }}'
         files:
           - path: kubernetes/applications/*/Source.json
 
+  # 1. БАЗОВЫЙ ШАБЛОН (Описываем общую структуру)
   template:
     metadata:
       name: '{{ .path.basename }}'
       annotations:
-        # Запускается строго после инфраструктуры; дефолтная волна "10"
         argocd.argoproj.io/sync-wave: '{{ default "10" (index . "wave") }}'
-
     spec:
       project: applications
 
-      {{- if eq .type "helm" }}
+      # По умолчанию подставляем структуру для Git
+      source:
+        repoURL: '{{ default "https://github.com" (index . "repoURL") }}'
+        targetRevision: '{{ default .generator.git.revision (index . "targetRevision") }}'
+        path: '{{ default .path.path (index . "path") }}'
+
+      destination:
+        server: https://default.svc
+        namespace: '{{ .path.basename }}'
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+
+  # 2. ДИНАМИЧЕСКИЙ СТРУКТУРНЫЙ ПАТЧ (Переопределяет блок source на sources, если тип helm)
+  templatePatch: |
+    {{- if eq .type "helm" }}
+    spec:
+      source: null
       sources:
         - repoURL: '{{ .repoURL }}'
           chart: '{{ .chart }}'
@@ -37,41 +56,94 @@ spec:
             valueFiles:
               - $values/{{ .path.path }}/values.yaml
 
-        - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
+        - repoURL: https://github.com
           targetRevision: '{{ .generator.git.revision }}'
           path: '{{ .path.path }}'
           ref: values
 
-        # Additional Kubernetes manifests
         {{- if and (index . "hasManifests") .hasManifests }}
-        - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
+        - repoURL: https://github.com
           targetRevision: '{{ .generator.git.revision }}'
           path: '{{ .path.path }}/manifests'
         {{- end }}
+    {{- end }}
 
-      {{- else if eq .type "git" }}
-      source:
-        # Если в JSON есть "repoURL", берем его. Если нет — берем основной репозиторий.
-        repoURL: '{{ default "https://github.com/willamep/selfhost-ha-k3s.git" (index . "repoURL") }}'
 
-        # Если в JSON есть "targetRevision", берем его, иначе — ветку из bootstrap.
-        targetRevision: '{{ default .generator.git.revision (index . "targetRevision") }}'
 
-        # Если в JSON есть "path", берем его (для внешних репозиториев),
-        # иначе — автоматически вычисляем локальный путь к текущей папке.
-        path: '{{ default .path.path (index . "path") }}'
-      {{- end }}
-
-      destination:
-        server: https://kubernetes.default.svc
-        namespace: '{{ .path.basename }}'
-
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-        syncOptions:
-          - CreateNamespace=true
+#apiVersion: argoproj.io/v1alpha1
+#kind: ApplicationSet
+#metadata:
+#  name: applications
+#  namespace: argocd
+#
+#spec:
+#  goTemplate: true
+#  goTemplateOptions:
+#    - missingkey=error
+#
+#  generators:
+#    - git:
+#        repoURL: https://github.com/willamep/selfhost-ha-k3s.git
+#        # Смотрит на ветку, указанную в bootstrap
+#        revision: '{{ .generator.git.revision }}'
+#        files:
+#          - path: kubernetes/applications/*/Source.json
+#
+#  template:
+#    metadata:
+#      name: '{{ .path.basename }}'
+#      annotations:
+#        # Запускается строго после инфраструктуры; дефолтная волна "10"
+#        argocd.argoproj.io/sync-wave: '{{ default "10" (index . "wave") }}'
+#
+#    spec:
+#      project: applications
+#
+#      {{- if eq .type "helm" }}
+#      sources:
+#        - repoURL: '{{ .repoURL }}'
+#          chart: '{{ .chart }}'
+#          targetRevision: '{{ .targetRevision }}'
+#          helm:
+#            ignoreMissingValueFiles: true
+#            valueFiles:
+#              - $values/{{ .path.path }}/values.yaml
+#
+#        - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
+#          targetRevision: '{{ .generator.git.revision }}'
+#          path: '{{ .path.path }}'
+#          ref: values
+#
+#        # Additional Kubernetes manifests
+#        {{- if and (index . "hasManifests") .hasManifests }}
+#        - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
+#          targetRevision: '{{ .generator.git.revision }}'
+#          path: '{{ .path.path }}/manifests'
+#        {{- end }}
+#
+#      {{- else if eq .type "git" }}
+#      source:
+#        # Если в JSON есть "repoURL", берем его. Если нет — берем основной репозиторий.
+#        repoURL: '{{ default "https://github.com/willamep/selfhost-ha-k3s.git" (index . "repoURL") }}'
+#
+#        # Если в JSON есть "targetRevision", берем его, иначе — ветку из bootstrap.
+#        targetRevision: '{{ default .generator.git.revision (index . "targetRevision") }}'
+#
+#        # Если в JSON есть "path", берем его (для внешних репозиториев),
+#        # иначе — автоматически вычисляем локальный путь к текущей папке.
+#        path: '{{ default .path.path (index . "path") }}'
+#      {{- end }}
+#
+#      destination:
+#        server: https://kubernetes.default.svc
+#        namespace: '{{ .path.basename }}'
+#
+#      syncPolicy:
+#        automated:
+#          prune: true
+#          selfHeal: true
+#        syncOptions:
+#          - CreateNamespace=true
 
 
 
