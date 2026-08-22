@@ -12,7 +12,7 @@ spec:
   generators:
     - git:
         repoURL: https://github.com/willamep/selfhost-ha-k3s.git
-        revision: '{{.app.spec.source.targetRevision}}'
+        revision: gitops-dev
         files:
           - path: kubernetes/applications/*/Source.json
 
