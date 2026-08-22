@@ -11,12 +11,12 @@ spec:
 
   generators:
     - git:
-        repoURL: https://github.com
+        repoURL: https://github.com/willamep/selfhost-ha-k3s.git
         revision: '{{ .generator.git.revision }}'
         files:
           - path: kubernetes/applications/*/Source.json
 
-  # 1. БАЗОВЫЙ ШАБЛОН (Описываем общую структуру)
+  # 1. БАЗОВЫЙ ШАБЛОН (Для Git-приложений по умолчанию)
   template:
     metadata:
       name: '{{ .path.basename }}'
@@ -25,14 +25,14 @@ spec:
     spec:
       project: applications
 
-      # По умолчанию подставляем структуру для Git
       source:
-        repoURL: '{{ default "https://github.com" (index . "repoURL") }}'
-        targetRevision: '{{ default .generator.git.revision (index . "targetRevision") }}'
+        repoURL: '{{ default "https://github.com/willamep/selfhost-ha-k3s.git" (index . "repoURL") }}'
+        # Безопасно вытаскиваем targetRevision из JSON, а если его нет — берем ревизию из генератора
+        targetRevision: '{{ default (index .generator.git "revision") (index . "targetRevision") }}'
         path: '{{ default .path.path (index . "path") }}'
 
       destination:
-        server: https://default.svc
+        server: https://kubernetes.default.svc
         namespace: '{{ .path.basename }}'
 
       syncPolicy:
@@ -42,7 +42,7 @@ spec:
         syncOptions:
           - CreateNamespace=true
 
-  # 2. ДИНАМИЧЕСКИЙ СТРУКТУРНЫЙ ПАТЧ (Переопределяет блок source на sources, если тип helm)
+  # 2. ДИНАМИЧЕСКИЙ СТРУКТУРНЫЙ ПАТЧ (Переопределяет структуру для Helm)
   templatePatch: |
     {{- if eq .type "helm" }}
     spec:
@@ -56,17 +56,18 @@ spec:
             valueFiles:
               - $values/{{ .path.path }}/values.yaml
 
-        - repoURL: https://github.com
+        - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
           targetRevision: '{{ .generator.git.revision }}'
           path: '{{ .path.path }}'
           ref: values
 
         {{- if and (index . "hasManifests") .hasManifests }}
-        - repoURL: https://github.com
+        - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
           targetRevision: '{{ .generator.git.revision }}'
           path: '{{ .path.path }}/manifests'
         {{- end }}
     {{- end }}
+
 
 
 
