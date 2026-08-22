@@ -5,11 +5,11 @@ ports:
     exposedPort: 80
     protocol: TCP
     # Настройка доверия к внешнему прокси, который присылает расшифрованный трафик
-    websecure: null # Позволяет Traefik принимать заголовки X-Forwarded-Proto (HTTP/HTTPS) от внешнего шлюза
+    forwardedHeaders:
+      insecure: true # Позволяет Traefik принимать заголовки X-Forwarded-Proto (HTTP/HTTPS) от внешнего шлюза
 
   # Отключаем стандартный TLS порт websecure, так как трафик уже расшифрован
-  websecure:
-    enabled: false
+  websecure: null
 
 # Настройка Kubernetes Service под ваш балансировщик kube-vip
 service:
