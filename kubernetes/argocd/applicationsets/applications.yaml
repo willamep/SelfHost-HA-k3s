@@ -27,8 +27,7 @@ spec:
 
       source:
         repoURL: '{{ default "https://github.com/willamep/selfhost-ha-k3s.git" (index . "repoURL") }}'
-        # Безопасно вытаскиваем targetRevision из JSON, а если его нет — берем ревизию из генератора
-        targetRevision: '{{ default (index .generator.git "revision") (index . "targetRevision") }}'
+        targetRevision: '{{ default "gitops-dev" (index . "targetRevision") }}'
         path: '{{ default .path.path (index . "path") }}'
 
       destination:
@@ -57,13 +56,13 @@ spec:
               - $values/{{ .path.path }}/values.yaml
 
         - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
-          targetRevision: '{{ .generator.git.revision }}'
+          targetRevision: gitops-dev
           path: '{{ .path.path }}'
           ref: values
 
         {{- if and (index . "hasManifests") .hasManifests }}
         - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
-          targetRevision: '{{ .generator.git.revision }}'
+          targetRevision: gitops-dev
           path: '{{ .path.path }}/manifests'
         {{- end }}
     {{- end }}
@@ -71,7 +70,8 @@ spec:
 
 
 
-#apiVersion: argoproj.io/v1alpha1
+
+#apiVersion: argoproj.io/v1alpha1 https://kubernetes.default.svc
 #kind: ApplicationSet
 #metadata:
 #  name: applications

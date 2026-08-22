@@ -16,7 +16,7 @@ spec:
         files:
           - path: kubernetes/infrastructure/*/Source.json
 
-  # 1. БАЗОВЫЙ ШАБЛОН (Синтаксически валидный YAML, настроенный под тип git)
+  # 1. БАЗОВЫЙ ШАБЛОН (Для Git-приложений по умолчанию)
   template:
     metadata:
       name: '{{ .path.basename }}'
@@ -25,10 +25,9 @@ spec:
     spec:
       project: infrastructure
 
-      # Дефолтный источник для Git-приложений
       source:
         repoURL: '{{ default "https://github.com/willamep/selfhost-ha-k3s.git" (index . "repoURL") }}'
-        targetRevision: '{{ default .generator.git.revision (index . "targetRevision") }}'
+        targetRevision: '{{ default "gitops-dev" (index . "targetRevision") }}'
         path: '{{ default .path.path (index . "path") }}'
 
       destination:
@@ -42,7 +41,7 @@ spec:
         syncOptions:
           - CreateNamespace=true
 
-  # 2. ДИНАМИЧЕСКИЙ СТРУКТУРНЫЙ ПАТЧ (Переключает source на массив sources для Helm)
+  # 2. ДИНАМИЧЕСКИЙ СТРУКТУРНЫЙ ПАТЧ (Переопределяет структуру для Helm)
   templatePatch: |
     {{- if eq .type "helm" }}
     spec:
@@ -57,13 +56,13 @@ spec:
               - $values/{{ .path.path }}/values.yaml
 
         - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
-          targetRevision: '{{ .generator.git.revision }}'
+          targetRevision: gitops-dev
           path: '{{ .path.path }}'
           ref: values
 
         {{- if and (index . "hasManifests") .hasManifests }}
         - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
-          targetRevision: '{{ .generator.git.revision }}'
+          targetRevision: gitops-dev
           path: '{{ .path.path }}/manifests'
         {{- end }}
     {{- end }}
