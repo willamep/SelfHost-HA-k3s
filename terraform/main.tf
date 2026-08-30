@@ -1,103 +1,19 @@
 # ───────────────────────────────────────────────────────────────────────
-# Описание парка VM:
-#
-# vm_id схема:  <нода><10-99>
-#   1xx → Proxmox #0 (Nik-Node-0, 16 GB RAM):
-#   2xx → Proxmox #1 (Nik-Node-1, 16 GB RAM):
-#   3xx → Proxmox #2 (Nik-Node-2, 32 GB RAM):
-#
-# Шаблон (var.template_id) лежит на ноде 2 → cross-node clone на ноды 0/1.
-#
-# В ВМ nextcloud вручную пробрасывается физический RAID с
-# пользовательскими файлами — осознанный дрейф вне terraform.
-# Внутри гостя диск монтируется по UUID Ansible-ролью nextcloud_vm.
+# Общая конфигурация VM для dev и prod.
+# Параметры конкретного окружения передаются через config/<env>.tfvars.
 # ───────────────────────────────────────────────────────────────────────
 
 locals {
+  proxmox_node_names = {
+    "0" = var.node_name_0
+    "1" = var.node_name_1
+    "2" = var.node_name_2
+  }
+
   vms = {
-    # ── Proxmox #0 ──────────────────────────────
-    "k3s-server-1" = {
-      name   = "k3s-server-dev-1"
-      vm_id  = 900
-      node   = var.node_name_0
-      cores  = 2
-      memory = 1536
-      disk   = 30
-      role   = "servers"
-    }
-
-    "k3s-agent-1" = {
-      name   = "k3s-agent-dev-1"
-      vm_id  = 901
-      node   = var.node_name_0
-      cores  = 2
-      memory = 2560
-      disk   = 30
-      role   = "agents"
-    }
-
-    # ── Proxmox #1 ──────────────────────────────
-    "k3s-server-2" = {
-      name   = "k3s-server-dev-2"
-      vm_id  = 902
-      node   = var.node_name_1
-      cores  = 2
-      memory = 1536
-      disk   = 30
-      role   = "servers"
-    }
-
-    "k3s-agent-2" = {
-      name   = "k3s-agent-dev-2"
-      vm_id  = 903
-      node   = var.node_name_1
-      cores  = 2
-      memory = 2560
-      disk   = 30
-      role   = "agents"
-    }
-
-    # ── Proxmox #2 ──────────────────────────────
-    "k3s-server-3" = {
-      name   = "k3s-server-dev-3"
-      vm_id  = 904
-      node   = var.node_name_2
-      cores  = 2
-      memory = 2560
-      disk   = 30
-      role   = "servers"
-    }
-
-    "k3s-agent-3" = {
-      name   = "k3s-agent-dev-3"
-      vm_id  = 905
-      node   = var.node_name_2
-      cores  = 2
-      memory = 2560
-      disk   = 30
-      role   = "agents"
-    }
-
-    "nfs-server" = {
-      name   = "nfs-server-dev-1"
-      vm_id  = 906
-      node   = var.node_name_2
-      cores  = 1
-      memory = 1024
-      disk   = 30
-      role   = "nfs_server"
-    }
-
-    "victoriametrics" = {
-      name      = "victoriametrics-dev-1"
-      vm_id     = 907
-      node      = var.node_name_2
-      cores     = 2
-      memory    = 2048
-      disk      = 10
-      data_disk = 20
-      role      = "victoriametrics"
-    }
+    for key, cfg in var.vms : key => merge(cfg, {
+      node_name = local.proxmox_node_names[tostring(cfg.node)]
+    })
   }
 
   proxmox_nodes = {
@@ -106,13 +22,7 @@ locals {
     (var.node_name_2) = var.node_2_ip
   }
 
-  static_ips = {
-    "k3s-server-1"    = "192.168.3.201"
-    "k3s-server-2"    = "192.168.3.202"
-    "k3s-server-3"    = "192.168.3.203"
-    "nfs-server"      = "192.168.3.205"
-    "victoriametrics" = "192.168.3.207"
-  }
+  expected_workspace = var.environment == "prod" ? "default" : var.environment
 }
 
 # ─────────────────────────────────────────────
@@ -123,15 +33,12 @@ resource "proxmox_virtual_environment_vm" "vm" {
   for_each = local.vms
 
   name      = each.value.name
-  node_name = each.value.node
+  node_name = each.value.node_name
   vm_id     = each.value.vm_id
 
   clone {
-    vm_id = var.template_id
+    vm_id = var.template_ids[tostring(each.value.node)]
     full  = true
-    # источник клона. На ноде 2 шаблон локальный → оставляем пустым;
-    # для нод 0/1 указываем ноду 2 (cross-node clone). Атрибут ForceNew.
-    node_name = each.value.node == var.node_name_2 ? null : var.node_name_2
   }
 
   cpu {
@@ -150,11 +57,8 @@ resource "proxmox_virtual_environment_vm" "vm" {
     discard      = "on"
   }
 
-  # Диск данных (scsi1) — только у ВМ, где задан data_disk. Ресурс общий на все
-  # ВМ через for_each; обычный второй disk-блок прицепился бы ко всем — dynamic
-  # включает его точечно (у остальных поля нет → пустой итератор → диска нет).
   dynamic "disk" {
-    for_each = lookup(each.value, "data_disk", null) != null ? [each.value.data_disk] : []
+    for_each = each.value.data_disk != null ? [each.value.data_disk] : []
     content {
       datastore_id = "local-lvm"
       interface    = "scsi1"
@@ -171,13 +75,13 @@ resource "proxmox_virtual_environment_vm" "vm" {
   initialization {
     ip_config {
       ipv4 {
-        address = lookup(local.static_ips, each.key, null) != null ? "${local.static_ips[each.key]}/24" : "dhcp"
-        gateway = lookup(local.static_ips, each.key, null) != null ? var.gateway : null
+        address = lookup(var.static_ips, each.key, null) != null ? "${var.static_ips[each.key]}/24" : "dhcp"
+        gateway = lookup(var.static_ips, each.key, null) != null ? var.gateway : null
       }
     }
     user_account {
       username = "ansible"
-      keys     = [file("./ssh-keys")]
+      keys     = split("\n", trimspace(file("./ssh-keys")))
       password = var.vm_password
     }
   }
@@ -185,21 +89,38 @@ resource "proxmox_virtual_environment_vm" "vm" {
   agent {
     enabled = true
   }
+
+  lifecycle {
+    # Не даёт случайно применить dev-параметры к production state и наоборот.
+    precondition {
+      condition     = terraform.workspace == local.expected_workspace
+      error_message = "Окружение '${var.environment}' нужно применять в workspace '${local.expected_workspace}', выбран '${terraform.workspace}'."
+    }
+
+    precondition {
+      condition     = alltrue([for key in keys(var.static_ips) : contains(keys(var.vms), key)])
+      error_message = "Все ключи static_ips должны соответствовать VM из vms."
+    }
+  }
 }
 
 # ─────────────────────────────────────────────
-# Ansible inventory
+# Генерируемый Ansible inventory
 # ─────────────────────────────────────────────
+
+locals {
+  resolved_vms = [
+    for key, cfg in local.vms : {
+      name = proxmox_virtual_environment_vm.vm[key].name
+      ip   = proxmox_virtual_environment_vm.vm[key].ipv4_addresses[1][0]
+      role = cfg.role
+    }
+  ]
+}
 
 resource "local_file" "ansible_inventory" {
   content = templatefile("inventory.tmpl", {
-    vms = [
-      for key, cfg in local.vms : {
-        name = proxmox_virtual_environment_vm.vm[key].name
-        ip   = proxmox_virtual_environment_vm.vm[key].ipv4_addresses[1][0]
-        role = cfg.role
-      }
-    ]
+    vms           = local.resolved_vms
     proxmox_nodes = local.proxmox_nodes
   })
   filename             = "../ansible/inventory/hosts.yml"

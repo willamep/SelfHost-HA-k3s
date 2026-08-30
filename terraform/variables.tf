@@ -9,9 +9,19 @@ variable "proxmox_api_token" {
   sensitive   = true
 }
 
-variable "template_id" {
-  description = "VM ID of the Proxmox template"
-  type        = number
+variable "template_ids" {
+  description = "VM ID локального шаблона для каждой Proxmox-ноды"
+  type        = map(number)
+
+  validation {
+    condition     = length(var.template_ids) == 3 && alltrue([for key in ["0", "1", "2"] : contains(keys(var.template_ids), key)])
+    error_message = "template_ids должен содержать ключи 0, 1 и 2."
+  }
+
+  validation {
+    condition     = length(distinct(values(var.template_ids))) == 3
+    error_message = "Каждая Proxmox-нода должна использовать шаблон с уникальным VM ID."
+  }
 }
 
 variable "node_name_0" {
@@ -57,4 +67,44 @@ variable "gateway" {
   description = "Шлюз для статических IP (сеть 192.168.3.0/24)"
   type        = string
   default     = "192.168.3.1"
+}
+
+variable "environment" {
+  description = "Окружение конфигурации: dev использует workspace dev, prod — default"
+  type        = string
+
+  validation {
+    condition     = contains(["dev", "prod"], var.environment)
+    error_message = "environment должен быть равен dev или prod."
+  }
+}
+
+variable "vms" {
+  description = "VM, создаваемые в выбранном окружении"
+  type = map(object({
+    name      = string
+    vm_id     = number
+    node      = number
+    cores     = number
+    memory    = number
+    disk      = number
+    data_disk = optional(number)
+    role      = string
+  }))
+
+  validation {
+    condition     = alltrue([for vm in values(var.vms) : contains([0, 1, 2], vm.node)])
+    error_message = "Поле node каждой VM должно быть равно 0, 1 или 2."
+  }
+
+  validation {
+    condition     = length(distinct([for vm in values(var.vms) : vm.vm_id])) == length(var.vms)
+    error_message = "vm_id должны быть уникальны внутри окружения."
+  }
+}
+
+variable "static_ips" {
+  description = "Статические IPv4-адреса VM; отсутствующие ключи используют DHCP"
+  type        = map(string)
+  default     = {}
 }
