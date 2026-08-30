@@ -54,13 +54,13 @@ alertmanager:
 
 grafana:
   enabled: true
-  initChownData:
-    enabled: false     # Отключаем init-контейнер для NFS
+
+  # Параметры подключения к PostgreSQL из Kubernetes Secret
+  envFromSecret: "grafana-database"
+
+  # Состояние Grafana хранится во внешней PostgreSQL
   persistence:
-    enabled: true
-    storageClassName: nfs-client
-    accessModes: ["ReadWriteOnce"]
-    size: "10Gi"
+    enabled: false
 
   # Ссылка на предварительно созданный вручную Kubernetes Secret
   admin:
