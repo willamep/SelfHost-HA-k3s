@@ -43,10 +43,11 @@ spec:
         syncOptions:
           - CreateNamespace=true
 
-  # 2. ДИНАМИЧЕСКИЙ СТРУКТУРНЫЙ ПАТЧ (Переопределяет структуру для Helm)
+  # 2. ДИНАМИЧЕСКИЙ СТРУКТУРНЫЙ ПАТЧ (Для Helm и дополнительных sync options)
   templatePatch: |
-    {{- if eq .type "helm" }}
+    {{- if or (eq .type "helm") (index . "serverSideApply") }}
     spec:
+      {{- if eq .type "helm" }}
       source: null
       sources:
         - repoURL: '{{ .repoURL }}'
@@ -66,4 +67,12 @@ spec:
           targetRevision: gitops-dev
           path: '{{ .path.path }}/manifests'
         {{- end }}
+      {{- end }}
+
+      {{- if (index . "serverSideApply") }}
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+      {{- end }}
     {{- end }}
