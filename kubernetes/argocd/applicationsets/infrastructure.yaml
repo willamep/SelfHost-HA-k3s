@@ -29,6 +29,8 @@ spec:
         repoURL: '{{ default "https://github.com/willamep/selfhost-ha-k3s.git" (index . "repoURL") }}'
         targetRevision: '{{ default "gitops-dev" (index . "targetRevision") }}'
         path: '{{ default .path.path (index . "sourcePath") }}'
+        directory:
+          exclude: Source.json
 
       destination:
         server: https://kubernetes.default.svc
