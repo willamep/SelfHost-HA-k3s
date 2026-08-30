@@ -57,7 +57,6 @@ spec:
 
         - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
           targetRevision: gitops-dev
-          path: '{{ .path.path }}'
           ref: values
 
         {{- if and (index . "hasManifests") .hasManifests }}
