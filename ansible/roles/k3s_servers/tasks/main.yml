@@ -1,9 +1,18 @@
 ---
 # Процесс установки
-- name: Check whether k3s is already installed
-  ansible.builtin.stat:
-    path: /usr/local/bin/k3s
-  register: k3s_binary
+- name: Check current K3s version
+  ansible.builtin.command: /usr/local/bin/k3s --version
+  register: k3s_current_version_cmd
+  failed_when: false
+  changed_when: false
+
+- name: Set facts for installation condition
+  ansible.builtin.set_fact:
+    needs_k3s_install: >-
+      {{
+        k3s_current_version_cmd.rc != 0 or 
+        k3s_version not in k3s_current_version_cmd.stdout
+      }}
 
 - name: Deploy kube-vip control-plane VIP
   ansible.builtin.include_tasks: kube-vip.yml
@@ -13,18 +22,18 @@
     url: https://get.k3s.io
     dest: /tmp/install-k3s.sh
     mode: "0755"
-  when: not k3s_binary.stat.exists
+  when: needs_k3s_install
 
 - name: Bootstrap init server (cluster-init)
   ansible.builtin.include_tasks: init.yml
   when:
-    - not k3s_binary.stat.exists
+    - needs_k3s_install
     - inventory_hostname == k3s_init_host
 
 - name: Join additional servers
   ansible.builtin.include_tasks: join.yml
   when:
-    - not k3s_binary.stat.exists
+    - needs_k3s_install
     - inventory_hostname != k3s_init_host
 
 - name: Delete k3s installer

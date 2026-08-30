@@ -40,7 +40,6 @@ pve_exporter_port: 9221
 
 # VictoriaMetrics: выделенная ВМ, хранилище метрик (remote_write из кластера).
 # scrapeInterval единым источником для Prometheus и -dedup.minScrapeInterval на VM.
-victoriametrics_ip: "{{ hostvars[groups['victoriametrics'][0]].ansible_host }}"
 prometheus_scrape_interval: "30s"
 
 k3s_version: "v1.35.5+k3s1"

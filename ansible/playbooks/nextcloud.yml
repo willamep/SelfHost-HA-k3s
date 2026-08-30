@@ -2,7 +2,7 @@
   hosts: nextcloud
   become: true
   roles:
-    - role: docker
+    - role: install_docker
       tags: ['docker']
 
 - name: Deploy nextcloud
