@@ -11,17 +11,25 @@ ports:
   # Отключаем стандартный TLS порт websecure, так как трафик уже расшифрован
   websecure: null
 
-# Настройка Kubernetes Service под ваш балансировщик kube-vip
+# Настройка Kubernetes Service под балансировщик kube-vip
 service:
   enabled: true
-  type: LoadBalancer
-  loadBalancerIP: "192.168.3.252"
-  # Сохраняем реальные IP, пришедшие от kube-vip/внешнего шлюза
-  externalTrafficPolicy: Local
+  annotations:
+    kube-vip.io/loadbalancerIPs: "192.168.3.252"
+  spec:
+    type: LoadBalancer
+    externalTrafficPolicy: Local
+
+# Толерантность для развёртывания на сервер-нодах
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Equal
+    value: "true"
+    effect: NoExecute
 
 # Развертывание в HA-режиме (высокая доступность)
 deployment:
-  kind: DaemonSet # Запускает по поду Traefik на каждой ноде вашего k3s для отказоустойчивости
+  kind: DaemonSet # Запускает по поду Traefik на каждой ноде k3s-кластера для отказоустойчивости
 
 # Отключаем сбор анонимной статистики
 global:
