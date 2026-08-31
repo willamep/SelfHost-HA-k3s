@@ -1,0 +1,7 @@
+{
+  "type": "helm",
+  "repoURL": "https://github.io",
+  "chart": "traefik",
+  "targetRevision": "34.0.0",
+  "hasManifests": false
+}

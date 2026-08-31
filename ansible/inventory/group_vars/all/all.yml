@@ -1,0 +1,56 @@
+caddy_email: "{{ vault_caddy_email }}"
+caddy_routes:
+  - host: grafana.avocatocat.ru
+    upstream: 192.168.3.252
+  - host: argocd.avocatocat.ru
+    upstream: 192.168.3.252
+  - host: tic-tac-toe.avocatocat.ru
+    upstream: 192.168.3.252
+  - host: cloud.avocatocat.ru
+    upstream: 192.168.3.206:8080
+  - host: print.avocatocat.ru
+    upstream: 192.168.3.16
+
+
+allow_subnet: "192.168.3.0/24"
+nfs_share:
+  - "/srv/nfs/"
+
+
+# Nextcloud: выделенная ВМ (docker compose)
+nextcloud_domain: "cloud.avocatocat.ru"
+nextcloud_admin_user: "Avocato"
+nextcloud_admin_password: "{{ vault_nextcloud_admin_password }}"
+nextcloud_db_password: "{{ vault_nextcloud_db_password }}"
+nextcloud_vm_ip: "{{ hostvars[groups['nextcloud'][0]].ansible_host }}"
+nextcloud_http_port: 8080
+# ФС проброшенного в ВМ RAID с пользовательскими файлами (монтируется по UUID).
+# RAID — на HDD, поэтому на нём ТОЛЬКО файлы пользователя; сам инстанс
+# (код, config, appdata, БД) — на SSD-диске ВМ (docker volumes)
+nextcloud_data_uuid: "2c4c74c1-3287-4dc3-be36-d80bb4e05363"
+nextcloud_data_mount: /mnt/nextcloud
+# Каталог пользователя на RAID;
+nextcloud_user_files_src: "{{ nextcloud_data_mount }}/avocato"
+
+
+# Prometheus exporters на хостах вне кластера
+node_exporter_port: 9100
+pve_exporter_port: 9221
+
+
+# VictoriaMetrics: выделенная ВМ, хранилище метрик (remote_write из кластера).
+# scrapeInterval единым источником для Prometheus и -dedup.minScrapeInterval на VM.
+prometheus_scrape_interval: "30s"
+
+k3s_version: "v1.35.5+k3s1"
+k3s_token: "{{ vault_k3s_token }}"
+# Init node = first host of the servers group (k3s-master-1)
+k3s_init_host: "{{ groups['servers'][0] }}"
+# Server URL join nodes register (init node's real IP)
+k3s_server_url: "https://{{ hostvars[groups['servers'][0]].ansible_host }}:6443"
+kube_vip_address: "192.168.3.251"
+localhost_kubeconfig: "~/.kube/config"
+
+argocd_gitops_repo_url: https://github.com/willamep/selfhost-ha-k3s
+argocd_gitops_repo_revision: main
+argocd_domain: "argocd.avocatocat.ru"

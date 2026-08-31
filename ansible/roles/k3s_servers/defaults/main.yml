@@ -1,6 +1,5 @@
 # ── k3s ──────────────────────
-# Remove the ability to use servers for non-tolerant pods
-k3s_node_taint: "CriticalAddonsOnly=true:NoExecute"
+# Server-ноды одновременно выполняют роль worker для прикладной нагрузки.
 
 # ── kube-vip ──────────────────────
 kube_vip_version: "v1.2.1"

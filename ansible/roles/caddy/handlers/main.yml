@@ -1,0 +1,6 @@
+# handlers/main.yml
+
+- name: Restart Caddy
+  ansible.builtin.systemd_service:
+    name: caddy
+    state: restarted

@@ -1,0 +1,49 @@
+- name: Deploy NFS
+  hosts: nfs_server
+  roles:
+    - role: nfs_server
+      tags: ['nfs_server']
+
+# VictoriaMetrics single: хранилище метрик для remote_write из кластера.
+# Ставим ДО monitoring, чтобы Prometheus было куда писать при старте.
+- name: Deploy VictoriaMetrics
+  hosts: victoriametrics
+  become: true
+  roles:
+    - role: victoriametrics
+      tags: ['victoriametrics']
+
+- name: Install NFS client on Kubernetes nodes
+  hosts: servers:ci_agents
+  become: true
+  tasks:
+    - name: Install nfs-common
+      ansible.builtin.apt:
+        name: nfs-common
+        state: present
+        update_cache: true
+        cache_valid_time: 86400
+
+- name: Deploy HA k3s control plane
+  hosts: servers
+  serial: [1, 2] # batch1 = init-server; batch2 = join-servers
+  roles:
+    - role: k3s_servers
+      tags: ['k3s_servers']
+
+- name: Deploy dedicated k3s CI agent
+  hosts: ci_agents
+  roles:
+    - role: k3s_agents
+      tags: ['k3s_agents', 'ci_agent']
+
+- name: Deploy ArgoCD
+  hosts: localhost
+  gather_facts: false
+  become: false
+  vars:
+    ansible_kubernetes_vars:
+      kubeconfig: "{{ localhost_kubeconfig }}"
+  roles:
+    - role: argocd
+      tags: ['argocd']

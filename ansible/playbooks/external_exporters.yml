@@ -1,0 +1,12 @@
+- name: Install node_exporter
+  hosts: proxmox:nfs_server:wireguard:nextcloud:victoriametrics
+  roles:
+    - role: node_exporter
+      tags: ['node_exporter']
+
+- name: Install pve-exporter
+  hosts: proxmox
+  gather_facts: false # роль не использует факты; не роняет прогон, если ноды недоступны
+  roles:
+    - role: pve_exporter
+      tags: ['pve_exporter']

@@ -1,0 +1,4 @@
+- name: Deploy edge-proxy
+  hosts: edge_proxy
+  roles:
+    - role: caddy

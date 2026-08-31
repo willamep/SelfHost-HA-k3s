@@ -1,0 +1,13 @@
+- name: Install docker on nextcloud VM
+  hosts: nextcloud
+  become: true
+  roles:
+    - role: install_docker
+      tags: ['docker']
+
+- name: Deploy nextcloud
+  hosts: nextcloud
+  become: true
+  roles:
+    - role: nextcloud_vm
+      tags: ['nextcloud_vm']

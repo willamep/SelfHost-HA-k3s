@@ -1,0 +1,36 @@
+# Конфигурация портов (Вход только по чистому HTTP)
+ports:
+  web:
+    port: 8000
+    exposedPort: 80
+    protocol: TCP
+    # Настройка доверия к внешнему прокси, который присылает расшифрованный трафик
+    forwardedHeaders:
+      insecure: true # Позволяет Traefik принимать заголовки X-Forwarded-Proto (HTTP/HTTPS) от внешнего шлюза
+
+  # Отключаем стандартный TLS порт websecure, так как трафик уже расшифрован
+  websecure: null
+
+# Настройка Kubernetes Service под балансировщик kube-vip
+service:
+  enabled: true
+  annotations:
+    kube-vip.io/loadbalancerIPs: "192.168.3.252"
+  spec:
+    type: LoadBalancer
+    externalTrafficPolicy: Local
+
+# Толерантность для развёртывания на сервер-нодах
+tolerations:
+  - key: CriticalAddonsOnly
+    operator: Equal
+    value: "true"
+    effect: NoExecute
+
+# Развертывание в HA-режиме (высокая доступность)
+deployment:
+  kind: DaemonSet # Запускает по поду Traefik на каждой ноде k3s-кластера для отказоустойчивости
+
+# Отключаем сбор анонимной статистики
+global:
+  sendAnonymousUsage: false

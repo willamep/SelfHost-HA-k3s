@@ -1,0 +1,7 @@
+---
+# CI jobs не должны конкурировать с backend-нагрузкой на server-нодах.
+k3s_ci_node_label: "workload=ci"
+# Этот зарезервированный label назначается через Kubernetes API после
+# регистрации ноды: kubelet запрещает передавать его через --node-label.
+k3s_ci_node_role_label: "node-role.kubernetes.io/ci=true"
+k3s_ci_node_taint: "workload=ci:NoSchedule"

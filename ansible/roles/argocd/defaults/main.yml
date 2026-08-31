@@ -1,0 +1,4 @@
+argocd_helm_repo_url: "https://argoproj.github.io/argo-helm"
+argocd_domain: "argocd.example.com"
+
+argocd_gitops_repo_revision: main

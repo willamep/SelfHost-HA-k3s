@@ -7,10 +7,8 @@
     INSTALL_K3S_EXEC: >-
       server --cluster-init
       --tls-san {{ kube_vip_address }}
-      --node-taint {{ k3s_node_taint }}
       --disable servicelb
-  args:
-    creates: /etc/systemd/system/k3s.service
+      --disable traefik
 
 - name: Wait until K3s node is Ready
   ansible.builtin.command: >-

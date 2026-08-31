@@ -1,0 +1,19 @@
+global:
+  domain: {{ argocd_domain }}
+
+ha:
+  enabled: true
+
+configs:
+  params:
+    server.insecure: "true"
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations: {}
+    hosts:
+      - "{{ argocd_domain }}"
+    path: /
+    tls: []
