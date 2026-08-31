@@ -17,7 +17,7 @@ vms = {
     node   = 0
     cores  = 8
     memory = 10240
-    disk   = 200
+    disk   = 100
     role   = "servers"
   }
 
@@ -37,7 +37,7 @@ vms = {
     node   = 1
     cores  = 8
     memory = 10240
-    disk   = 50
+    disk   = 35
     role   = "servers"
   }
 
@@ -57,7 +57,7 @@ vms = {
     node   = 2
     cores  = 8
     memory = 10240
-    disk   = 150
+    disk   = 100
     role   = "servers"
   }
   "k3s-ci-agent" = {
