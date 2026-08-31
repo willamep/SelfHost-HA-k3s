@@ -15,19 +15,10 @@ vms = {
     name   = "k3s-server-1"
     vm_id  = 111
     node   = 0
-    cores  = 2
-    memory = 2048
-    disk   = 50
-    role   = "servers"
-  }
-  "k3s-agent-1" = {
-    name   = "k3s-agent-1"
-    vm_id  = 112
-    node   = 0
-    cores  = 6
-    memory = 9216
+    cores  = 8
+    memory = 10240
     disk   = 200
-    role   = "agents"
+    role   = "servers"
   }
 
   # Proxmox #1 (16 GB, SSD 128 GB)
@@ -44,19 +35,10 @@ vms = {
     name   = "k3s-server-2"
     vm_id  = 211
     node   = 1
-    cores  = 2
-    memory = 2048
-    disk   = 10
-    role   = "servers"
-  }
-  "k3s-agent-2" = {
-    name   = "k3s-agent-2"
-    vm_id  = 212
-    node   = 1
-    cores  = 6
+    cores  = 8
     memory = 10240
-    disk   = 35
-    role   = "agents"
+    disk   = 50
+    role   = "servers"
   }
 
   # Proxmox #2 (32 GB)
@@ -73,19 +55,19 @@ vms = {
     name   = "k3s-server-3"
     vm_id  = 311
     node   = 2
-    cores  = 2
-    memory = 3072
-    disk   = 50
+    cores  = 8
+    memory = 10240
+    disk   = 150
     role   = "servers"
   }
-  "k3s-agent-3" = {
-    name   = "k3s-agent-3"
+  "k3s-ci-agent" = {
+    name   = "k3s-ci-agent-1"
     vm_id  = 312
     node   = 2
     cores  = 6
-    memory = 20480
-    disk   = 200
-    role   = "agents"
+    memory = 10240
+    disk   = 100
+    role   = "ci_agents"
   }
   "victoriametrics" = {
     name      = "victoriametrics-1"
@@ -103,6 +85,7 @@ static_ips = {
   "k3s-server-1"    = "192.168.3.201"
   "k3s-server-2"    = "192.168.3.202"
   "k3s-server-3"    = "192.168.3.203"
+  "k3s-ci-agent"    = "192.168.3.208"
   "wireguard"       = "192.168.3.204"
   "nfs-server"      = "192.168.3.205"
   "nextcloud"       = "192.168.3.206"

@@ -101,6 +101,15 @@ variable "vms" {
     condition     = length(distinct([for vm in values(var.vms) : vm.vm_id])) == length(var.vms)
     error_message = "vm_id должны быть уникальны внутри окружения."
   }
+
+  validation {
+    condition = (
+      length([for vm in values(var.vms) : vm if vm.role == "servers"]) == 3 &&
+      length(distinct([for vm in values(var.vms) : vm.node if vm.role == "servers"])) == 3 &&
+      length([for vm in values(var.vms) : vm if vm.role == "ci_agents"]) == 1
+    )
+    error_message = "Топология k3s должна содержать три server-ноды на разных Proxmox-нодах и один CI agent."
+  }
 }
 
 variable "static_ips" {
