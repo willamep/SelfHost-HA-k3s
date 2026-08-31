@@ -52,5 +52,5 @@ kube_vip_address: "192.168.3.251"
 localhost_kubeconfig: "~/.kube/config"
 
 argocd_gitops_repo_url: https://github.com/willamep/selfhost-ha-k3s
-argocd_gitops_repo_revision: gitops-dev
+argocd_gitops_repo_revision: main
 argocd_domain: "argocd.avocatocat.ru"

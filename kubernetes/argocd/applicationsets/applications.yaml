@@ -12,7 +12,7 @@ spec:
   generators:
     - git:
         repoURL: https://github.com/willamep/selfhost-ha-k3s.git
-        revision: gitops-dev
+        revision: main
         files:
           - path: kubernetes/applications/*/Source.json
 
@@ -27,7 +27,7 @@ spec:
 
       source:
         repoURL: '{{ default "https://github.com/willamep/selfhost-ha-k3s.git" (index . "repoURL") }}'
-        targetRevision: '{{ default "gitops-dev" (index . "targetRevision") }}'
+        targetRevision: '{{ default "main" (index . "targetRevision") }}'
         path: '{{ default .path.path (index . "sourcePath") }}'
         directory:
           exclude: Source.json
@@ -59,12 +59,12 @@ spec:
               - $values/{{ .path.path }}/values.yaml
 
         - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
-          targetRevision: gitops-dev
+          targetRevision: main
           ref: values
 
         {{- if and (index . "hasManifests") .hasManifests }}
         - repoURL: https://github.com/willamep/selfhost-ha-k3s.git
-          targetRevision: gitops-dev
+          targetRevision: main
           path: '{{ .path.path }}/manifests'
         {{- end }}
       {{- end }}
