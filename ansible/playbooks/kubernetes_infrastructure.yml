@@ -13,6 +13,17 @@
     - role: victoriametrics
       tags: ['victoriametrics']
 
+- name: Install NFS client on Kubernetes nodes
+  hosts: servers:ci_agents
+  become: true
+  tasks:
+    - name: Install nfs-common
+      ansible.builtin.apt:
+        name: nfs-common
+        state: present
+        update_cache: true
+        cache_valid_time: 86400
+
 - name: Deploy HA k3s control plane
   hosts: servers
   serial: [1, 2] # batch1 = init-server; batch2 = join-servers
@@ -20,11 +31,11 @@
     - role: k3s_servers
       tags: ['k3s_servers']
 
-- name: Deploy HA k3s agents
-  hosts: agents
+- name: Deploy dedicated k3s CI agent
+  hosts: ci_agents
   roles:
     - role: k3s_agents
-      tags: ['k3s_agents']
+      tags: ['k3s_agents', 'ci_agent']
 
 - name: Deploy ArgoCD
   hosts: localhost

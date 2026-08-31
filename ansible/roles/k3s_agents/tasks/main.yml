@@ -1,21 +1,28 @@
-- name: Install nfs-common
-  apt:
-    name: nfs-common
-    state: present
-    update_cache: true
-    cache_valid_time: 86400
-
 - name: Check current K3s version
   ansible.builtin.command: /usr/local/bin/k3s --version
   register: k3s_current_version_cmd
   failed_when: false
   changed_when: false
 
+- name: Check whether K3s agent service is installed
+  ansible.builtin.stat:
+    path: /etc/systemd/system/k3s-agent.service
+  register: k3s_agent_service
+
+- name: Read installed K3s agent service
+  ansible.builtin.slurp:
+    path: /etc/systemd/system/k3s-agent.service
+  register: k3s_agent_service_file
+  when: k3s_agent_service.stat.exists
+
 - name: Set facts for installation condition
   ansible.builtin.set_fact:
     needs_k3s_install: >-
       {{
-        k3s_current_version_cmd.rc != 0 or 
+        k3s_current_version_cmd.rc != 0 or
+        not k3s_agent_service.stat.exists or
+        k3s_ci_node_role_label in
+          ((k3s_agent_service_file.content | default('')) | b64decode) or
         k3s_version not in k3s_current_version_cmd.stdout
       }}
 
@@ -33,7 +40,27 @@
     K3S_TOKEN: "{{ k3s_token }}"
     INSTALL_K3S_EXEC: >-
       agent --server {{ k3s_server_url }}
+      --node-name {{ inventory_hostname }}
+      --node-label {{ k3s_ci_node_label }}
+      --node-taint {{ k3s_ci_node_taint }}
   when: needs_k3s_install
+
+- name: Ensure K3s agent service is enabled and running
+  ansible.builtin.systemd_service:
+    name: k3s-agent
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait until K3s node object appears
+  ansible.builtin.command: >-
+    /usr/local/bin/k3s kubectl get node {{ inventory_hostname }}
+  register: k3s_agent_node
+  until: k3s_agent_node.rc == 0
+  retries: 30
+  delay: 5
+  delegate_to: "{{ k3s_init_host }}"
+  changed_when: false
 
 - name: Wait until K3s node is Ready
   ansible.builtin.command: >-
@@ -43,10 +70,19 @@
   delegate_to: "{{ k3s_init_host }}"
   changed_when: false
 
-- name: Label agent nodes as worker
+- name: Reconcile CI agent labels
   ansible.builtin.command: >-
-    kubectl label node {{ inventory_hostname }}
-    node-role.kubernetes.io/worker=worker
+    /usr/local/bin/k3s kubectl label node {{ inventory_hostname }}
+    {{ k3s_ci_node_label }}
+    {{ k3s_ci_node_role_label }}
+    --overwrite
+  delegate_to: "{{ k3s_init_host }}"
+  changed_when: false
+
+- name: Reconcile CI agent taint
+  ansible.builtin.command: >-
+    /usr/local/bin/k3s kubectl taint node {{ inventory_hostname }}
+    {{ k3s_ci_node_taint }}
     --overwrite
   delegate_to: "{{ k3s_init_host }}"
   changed_when: false
