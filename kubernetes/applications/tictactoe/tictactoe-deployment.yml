@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: tictactoe
-          image: avocatocat/tictactoe:latest
+          image: avocatocat/tictactoe:v1.0.0
           ports:
             - containerPort: 8080
           env:
@@ -24,6 +24,11 @@ spec:
                 secretKeyRef:
                   name: tictactoe-db
                   key: DATABASE_URL
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tictactoe-jwt
+                  key: JWT_SECRET_KEY
 ---
 apiVersion: v1
 kind: Service
